@@ -38,7 +38,7 @@
             # update this if you have a mismatch after doing a change to thos files.
             vendorSha256 = "sha256-lqMmTPLlnm4dGs3O+hS0LmR5LTWP5ICqMSkNnB+XXLI=";
 
-            ldflags = [ "-s" "-w" "-X github.com/juanfont/headscale/cmd/headscale/cli.Version=v${version}" ];
+            ldflags = [ "-s" "-w" "-X github.com/ori-edge/headscale/cmd/headscale/cli.Version=v${version}" ];
           };
 
           golines = pkgs.buildGoModule rec {

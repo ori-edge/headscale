@@ -112,6 +112,9 @@ func (s *Suite) TestMagicDNSRootDomainsIPv6SingleMultiple(c *check.C) {
 }
 
 func (s *Suite) TestDNSConfigMapResponseWithMagicDNS(c *check.C) {
+	err := app.LoadACLPolicy("./tests/acls/acl_policy_all_allow.hujson")
+	c.Assert(err, check.IsNil)
+
 	userShared1, err := app.CreateUser("shared1")
 	c.Assert(err, check.IsNil)
 
@@ -231,6 +234,9 @@ func (s *Suite) TestDNSConfigMapResponseWithMagicDNS(c *check.C) {
 		Domains: []string{baseDomain},
 		Proxied: true,
 	}
+
+	err = app.UpdateACLRules()
+	c.Assert(err, check.IsNil)
 
 	peersOfMachineInShared1, err := app.getPeers(machineInShared1)
 	c.Assert(err, check.IsNil)

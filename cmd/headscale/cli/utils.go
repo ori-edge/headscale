@@ -8,8 +8,8 @@ import (
 	"os"
 	"reflect"
 
-	"github.com/juanfont/headscale"
-	v1 "github.com/juanfont/headscale/gen/go/headscale/v1"
+	"github.com/ori-edge/headscale"
+	v1 "github.com/ori-edge/headscale/gen/go/headscale/v1"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

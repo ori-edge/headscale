@@ -12,6 +12,7 @@ This includes running Headscale with SystemD.
 
 ## Migrating from manual install
 
+1. Download the latest [`headscale` binary from GitHub's release page](https://github.com/ori-edge/headscale/releases):
 If you are migrating from the old manual install, the best thing would be to remove
 the files installed by following [the guide in reverse](./running-headscale-linux-manual.md).
 
@@ -24,7 +25,7 @@ configuration (`/etc/headscale/config.yaml`).
 
 ```shell
 wget --output-document=headscale.deb \
-  https://github.com/juanfont/headscale/releases/download/v<HEADSCALE VERSION>/headscale_<HEADSCALE VERSION>_linux_<ARCH>.deb
+  https://github.com/ori-edge/headscale/releases/download/v<HEADSCALE VERSION>/headscale_<HEADSCALE VERSION>_linux_<ARCH>.deb
 ```
 
 2. Install Headscale:

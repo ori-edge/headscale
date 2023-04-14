@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	survey "github.com/AlecAivazis/survey/v2"
-	"github.com/juanfont/headscale"
-	v1 "github.com/juanfont/headscale/gen/go/headscale/v1"
+	"github.com/ori-edge/headscale"
+	v1 "github.com/ori-edge/headscale/gen/go/headscale/v1"
 	"github.com/pterm/pterm"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"

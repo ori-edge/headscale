@@ -28,18 +28,18 @@ cd ./headscale
 touch ./config/db.sqlite
 ```
 
-3. **(Strongly Recommended)** Download a copy of the [example configuration][config-example.yaml](https://github.com/juanfont/headscale/blob/main/config-example.yaml) from the headscale repository.
+3. **(Strongly Recommended)** Download a copy of the [example configuration][config-example.yaml](https://github.com/ori-edge/headscale/blob/main/config-example.yaml) from the headscale repository.
 
 Using wget:
 
 ```shell
-wget -O ./config/config.yaml https://raw.githubusercontent.com/juanfont/headscale/main/config-example.yaml
+wget -O ./config/config.yaml https://raw.githubusercontent.com/ori-edge/headscale/main/config-example.yaml
 ```
 
 Using curl:
 
 ```shell
-curl https://raw.githubusercontent.com/juanfont/headscale/main/config-example.yaml -o ./config/config.yaml
+curl https://raw.githubusercontent.com/ori-edge/headscale/main/config-example.yaml -o ./config/config.yaml
 ```
 
 **(Advanced)** If you would like to hand craft a config file **instead** of downloading the example config file, create a blank `headscale` configuration in the headscale directory to edit:

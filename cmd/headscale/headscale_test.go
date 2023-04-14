@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/juanfont/headscale"
+	"github.com/ori-edge/headscale"
 	"github.com/spf13/viper"
 	"gopkg.in/check.v1"
 )

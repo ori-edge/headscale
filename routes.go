@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/netip"
 
-	v1 "github.com/juanfont/headscale/gen/go/headscale/v1"
+	v1 "github.com/ori-edge/headscale/gen/go/headscale/v1"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/gorm"
@@ -92,7 +92,7 @@ func (h *Headscale) EnableRoute(id uint64) error {
 
 	// Tailscale requires both IPv4 and IPv6 exit routes to
 	// be enabled at the same time, as per
-	// https://github.com/juanfont/headscale/issues/804#issuecomment-1399314002
+	// https://github.com/ori-edge/headscale/issues/804#issuecomment-1399314002
 	if route.isExitRoute() {
 		return h.enableRoutes(&route.Machine, ExitRouteV4.String(), ExitRouteV6.String())
 	}

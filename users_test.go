@@ -93,6 +93,9 @@ func (s *Suite) TestRenameUser(c *check.C) {
 }
 
 func (s *Suite) TestGetMapResponseUserProfiles(c *check.C) {
+	err := app.LoadACLPolicy("./tests/acls/acl_policy_all_allow.hujson")
+	c.Assert(err, check.IsNil)
+
 	userShared1, err := app.CreateUser("shared1")
 	c.Assert(err, check.IsNil)
 
@@ -205,6 +208,9 @@ func (s *Suite) TestGetMapResponseUserProfiles(c *check.C) {
 		AuthKeyID:      uint(preAuthKey2Shared1.ID),
 	}
 	app.db.Save(machine2InShared1)
+
+	err = app.UpdateACLRules()
+	c.Assert(err, check.IsNil)
 
 	peersOfMachine1InShared1, err := app.getPeers(machineInShared1)
 	c.Assert(err, check.IsNil)

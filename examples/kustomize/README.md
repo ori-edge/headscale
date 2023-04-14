@@ -68,7 +68,7 @@ tasks like creating namespaces, authkeys, etc.
 
 headscale is an open source implementation of the Tailscale control server
 
-https://github.com/juanfont/headscale
+https://github.com/ori-edge/headscale
 
 Usage:
   headscale [command]

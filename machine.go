@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	v1 "github.com/juanfont/headscale/gen/go/headscale/v1"
+	v1 "github.com/ori-edge/headscale/gen/go/headscale/v1"
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -289,8 +289,8 @@ func (h *Headscale) ListPeers(machine *Machine) (Machines, error) {
 		Msg("Finding direct peers")
 
 	machines := Machines{}
-	if err := h.db.Preload("AuthKey").Preload("AuthKey.User").Preload("User").Where("node_key <> ?",
-		machine.NodeKey).Find(&machines).Error; err != nil {
+	if err := h.db.Preload("AuthKey").Preload("AuthKey.User").Preload("User").Where("node_key <> ? AND user_id = ?",
+		machine.NodeKey, machine.UserID).Find(&machines).Error; err != nil {
 		log.Error().Err(err).Msg("Error accessing db")
 
 		return Machines{}, err
