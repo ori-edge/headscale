@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	v1 "github.com/juanfont/headscale/gen/go/headscale/v1"
-	"github.com/juanfont/headscale/integration/hsic"
-	"github.com/juanfont/headscale/integration/tsic"
+	v1 "github.com/ori-edge/headscale/gen/go/headscale/v1"
+	"github.com/ori-edge/headscale/integration/hsic"
+	"github.com/ori-edge/headscale/integration/tsic"
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"

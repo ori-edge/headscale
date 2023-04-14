@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/juanfont/headscale"
-	v1 "github.com/juanfont/headscale/gen/go/headscale/v1"
-	"github.com/juanfont/headscale/integration/dockertestutil"
-	"github.com/juanfont/headscale/integration/hsic"
-	"github.com/juanfont/headscale/integration/tsic"
+	"github.com/ori-edge/headscale"
+	v1 "github.com/ori-edge/headscale/gen/go/headscale/v1"
+	"github.com/ori-edge/headscale/integration/dockertestutil"
+	"github.com/ori-edge/headscale/integration/hsic"
+	"github.com/ori-edge/headscale/integration/tsic"
 	"github.com/ory/dockertest/v3"
 	"github.com/puzpuzpuz/xsync/v2"
 )

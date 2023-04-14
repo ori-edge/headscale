@@ -26,18 +26,18 @@ describing how to make `headscale` run properly in a server environment.
 # Install prerequistes
 pkg_add go
 
-git clone https://github.com/juanfont/headscale.git
+git clone https://github.com/ori-edge/headscale.git
 
 cd headscale
 
 # optionally checkout a release
-# option a. you can find offical relase at https://github.com/juanfont/headscale/releases/latest
+# option a. you can find offical relase at https://github.com/ori-edge/headscale/releases/latest
 # option b. get latest tag, this may be a beta release
 latestTag=$(git describe --tags `git rev-list --tags --max-count=1`)
 
 git checkout $latestTag
 
-go build -ldflags="-s -w -X github.com/juanfont/headscale/cmd/headscale/cli.Version=$latestTag" github.com/juanfont/headscale
+go build -ldflags="-s -w -X github.com/ori-edge/headscale/cmd/headscale/cli.Version=$latestTag" github.com/ori-edge/headscale
 
 # make it executable
 chmod a+x headscale
@@ -53,12 +53,12 @@ cp headscale /usr/local/sbin
 # 1. go v1.20+: headscale newer than 0.21 needs go 1.20+ to compile
 # 2. gmake: Makefile in the headscale repo is written in GNU make syntax
 
-git clone https://github.com/juanfont/headscale.git
+git clone https://github.com/ori-edge/headscale.git
 
 cd headscale
 
 # optionally checkout a release
-# option a. you can find offical relase at https://github.com/juanfont/headscale/releases/latest
+# option a. you can find offical relase at https://github.com/ori-edge/headscale/releases/latest
 # option b. get latest tag, this may be a beta release
 latestTag=$(git describe --tags `git rev-list --tags --max-count=1`)
 
@@ -94,7 +94,7 @@ touch /var/lib/headscale/db.sqlite
 touch /etc/headscale/config.yaml
 ```
 
-**(Strongly Recommended)** Download a copy of the [example configuration][config-example.yaml](https://github.com/juanfont/headscale/blob/main/config-example.yaml) from the headscale repository.
+**(Strongly Recommended)** Download a copy of the [example configuration][config-example.yaml](https://github.com/ori-edge/headscale/blob/main/config-example.yaml) from the headscale repository.
 
 4. Start the headscale server:
 

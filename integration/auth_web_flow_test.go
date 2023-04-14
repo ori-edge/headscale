@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/juanfont/headscale/integration/hsic"
+	"github.com/ori-edge/headscale/integration/hsic"
 	"github.com/samber/lo"
 )
 
@@ -255,7 +255,7 @@ func (s *AuthWebFlowScenario) runTailscaleUp(
 			go func(c TailscaleClient) {
 				defer user.joinWaitGroup.Done()
 
-				// TODO(juanfont): error handle this
+				// TODO(ori-edge): error handle this
 				loginURL, err := c.UpWithLoginURL(loginServer)
 				if err != nil {
 					log.Printf("failed to run tailscale up: %s", err)

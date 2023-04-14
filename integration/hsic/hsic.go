@@ -18,10 +18,10 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/juanfont/headscale"
-	v1 "github.com/juanfont/headscale/gen/go/headscale/v1"
-	"github.com/juanfont/headscale/integration/dockertestutil"
-	"github.com/juanfont/headscale/integration/integrationutil"
+	"github.com/ori-edge/headscale"
+	v1 "github.com/ori-edge/headscale/gen/go/headscale/v1"
+	"github.com/ori-edge/headscale/integration/dockertestutil"
+	"github.com/ori-edge/headscale/integration/integrationutil"
 	"github.com/ory/dockertest/v3"
 )
 

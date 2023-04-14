@@ -1,6 +1,6 @@
 ![headscale logo](./docs/logo/headscale3_header_stacked_left.png)
 
-![ci](https://github.com/juanfont/headscale/actions/workflows/test.yml/badge.svg)
+![ci](https://github.com/ori-edge/headscale/actions/workflows/test.yml/badge.svg)
 
 An open source, self-hosted implementation of the Tailscale control server.
 
@@ -182,7 +182,7 @@ make build
         </a>
     </td>
     <td align="center" style="word-wrap: break-word; width: 150.0; height: 150.0">
-        <a href=https://github.com/juanfont>
+        <a href=https://github.com/ori-edge>
             <img src=https://avatars.githubusercontent.com/u/181059?v=4 width="100;"  style="border-radius:50%;align-items:center;justify-content:center;overflow:hidden;padding-top:10px" alt=Juan Font/>
             <br />
             <sub style="font-size:14px"><b>Juan Font</b></sub>

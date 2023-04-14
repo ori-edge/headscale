@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/juanfont/headscale"
-	"github.com/juanfont/headscale/integration/dockertestutil"
-	"github.com/juanfont/headscale/integration/hsic"
+	"github.com/ori-edge/headscale"
+	"github.com/ori-edge/headscale/integration/dockertestutil"
+	"github.com/ori-edge/headscale/integration/hsic"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 	"github.com/samber/lo"
@@ -315,7 +315,7 @@ func (s *AuthOIDCScenario) runTailscaleUp(
 			go func(c TailscaleClient) {
 				defer user.joinWaitGroup.Done()
 
-				// TODO(juanfont): error handle this
+				// TODO(ori-edge): error handle this
 				loginURL, err := c.UpWithLoginURL(loginServer)
 				if err != nil {
 					log.Printf("failed to run tailscale up: %s", err)

@@ -235,7 +235,7 @@ dns_config:
 
   # Extra DNS records
   # so far only A-records are supported (on the tailscale side)
-  # See https://github.com/juanfont/headscale/blob/main/docs/dns-records.md#Limitations
+  # See https://github.com/ori-edge/headscale/blob/main/docs/dns-records.md#Limitations
   # extra_records:
   #   - name: "grafana.myvpn.example.com"
   #     type: "A"

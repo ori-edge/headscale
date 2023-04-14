@@ -340,7 +340,7 @@ var commonTemplate = textTemplate.Must(
     <key>PayloadDescription</key>
     <string>Configure Tailscale login server to: {{.URL}}</string>
     <key>PayloadIdentifier</key>
-    <string>com.github.juanfont.headscale</string>
+    <string>com.github.ori-edge.headscale</string>
     <key>PayloadRemovalDisallowed</key>
     <false/>
     <key>PayloadType</key>
@@ -362,7 +362,7 @@ var iosTemplate = textTemplate.Must(textTemplate.New("iosTemplate").Parse(`
         <key>PayloadUUID</key>
         <string>{{.UUID}}</string>
         <key>PayloadIdentifier</key>
-        <string>com.github.juanfont.headscale</string>
+        <string>com.github.ori-edge.headscale</string>
         <key>PayloadVersion</key>
         <integer>1</integer>
         <key>PayloadEnabled</key>
@@ -380,7 +380,7 @@ var macosAppStoreTemplate = template.Must(template.New("macosTemplate").Parse(`
         <key>PayloadUUID</key>
         <string>{{.UUID}}</string>
         <key>PayloadIdentifier</key>
-        <string>com.github.juanfont.headscale</string>
+        <string>com.github.ori-edge.headscale</string>
         <key>PayloadVersion</key>
         <integer>1</integer>
         <key>PayloadEnabled</key>
@@ -397,7 +397,7 @@ var macosStandaloneTemplate = template.Must(template.New("macosStandaloneTemplat
         <key>PayloadUUID</key>
         <string>{{.UUID}}</string>
         <key>PayloadIdentifier</key>
-        <string>com.github.juanfont.headscale</string>
+        <string>com.github.ori-edge.headscale</string>
         <key>PayloadVersion</key>
         <integer>1</integer>
         <key>PayloadEnabled</key>
