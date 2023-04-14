@@ -36,9 +36,9 @@
 
             # When updating go.mod or go.sum, a new sha will need to be calculated,
             # update this if you have a mismatch after doing a change to thos files.
-            vendorSha256 = "sha256-+JxS4Q6rTpdBwms2nkVDY/Kluv2qu2T0BaOIjfeX85M=";
+            vendorSha256 = "sha256-aDsoIUHzml4GIQuxIMXXJfW7oqWuUq+tAjiXSz2TbY4=";
 
-            ldflags = [ "-s" "-w" "-X github.com/juanfont/headscale/cmd/headscale/cli.Version=v${version}" ];
+            ldflags = [ "-s" "-w" "-X github.com/ori-edge/headscale/cmd/headscale/cli.Version=v${version}" ];
           };
 
           golines = pkgs.buildGoModule rec {

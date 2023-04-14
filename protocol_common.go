@@ -206,7 +206,7 @@ func (h *Headscale) handleRegisterCommon(
 	// - The machine is logged out (or expired) and pending to be authorized. TODO(juan): We need to keep alive the connection here
 	if machine != nil {
 		// (juan): For a while we had a bug where we were not storing the MachineKey for the nodes using the TS2021,
-		// due to a misunderstanding of the protocol https://github.com/juanfont/headscale/issues/1054
+		// due to a misunderstanding of the protocol https://github.com/ori-edge/headscale/issues/1054
 		// So if we have a not valid MachineKey (but we were able to fetch the machine with the NodeKeys), we update it.
 		var storedMachineKey key.MachinePublic
 		err = storedMachineKey.UnmarshalText(

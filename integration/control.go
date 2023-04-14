@@ -1,7 +1,7 @@
 package integration
 
 import (
-	v1 "github.com/juanfont/headscale/gen/go/headscale/v1"
+	v1 "github.com/ori-edge/headscale/gen/go/headscale/v1"
 )
 
 type ControlServer interface {

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/efekarakus/termcolor"
-	"github.com/juanfont/headscale/cmd/headscale/cli"
+	"github.com/ori-edge/headscale/cmd/headscale/cli"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )

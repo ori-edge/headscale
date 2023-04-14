@@ -149,7 +149,7 @@ Here are the ACL's to implement the same permissions as above:
     // the internal network is composed of HTTPS endpoints and Postgresql
     // database servers. There's an additional rule to allow traffic to be
     // forwarded to the internal subnet, 10.20.0.0/16. See this issue
-    // https://github.com/juanfont/headscale/issues/502
+    // https://github.com/ori-edge/headscale/issues/502
     {
       "action": "accept",
       "src": ["group:dev"],

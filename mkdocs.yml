@@ -1,12 +1,12 @@
 site_name: Headscale
-site_url: https://juanfont.github.io/headscale
+site_url: https://ori-edge.github.io/headscale
 site_author: Headscale authors
 site_description: >-
   An open source, self-hosted implementation of the Tailscale control server.
 
 # Repository
-repo_name: juanfont/headscale
-repo_url: https://github.com/juanfont/headscale
+repo_name: ori-edge/headscale
+repo_url: https://github.com/ori-edge/headscale
 
 # Copyright
 copyright: Copyright &copy; 2023 Headscale authors
@@ -68,11 +68,11 @@ extra:
     json: [.s2]
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/juanfont/headscale
+      link: https://github.com/ori-edge/headscale
     - icon: material/coffee
       link: https://ko-fi.com/headscale
     - icon: fontawesome/brands/docker
-      link: https://github.com/juanfont/headscale/pkgs/container/headscale
+      link: https://github.com/ori-edge/headscale/pkgs/container/headscale
     - icon: fontawesome/brands/discord
       link: https://discord.gg/c84AZQhmpx
 

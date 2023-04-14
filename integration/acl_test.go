@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/juanfont/headscale"
-	"github.com/juanfont/headscale/integration/hsic"
-	"github.com/juanfont/headscale/integration/tsic"
+	"github.com/ori-edge/headscale"
+	"github.com/ori-edge/headscale/integration/hsic"
+	"github.com/ori-edge/headscale/integration/tsic"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -225,7 +225,7 @@ func TestACLHostsInNetMapTable(t *testing.T) {
 // This should make the node appear in the peer list, but
 // disallow ping.
 // This ACL will not allow user1 access its own machines.
-// Reported: https://github.com/juanfont/headscale/issues/699
+// Reported: https://github.com/ori-edge/headscale/issues/699
 func TestACLAllowUser80Dst(t *testing.T) {
 	IntegrationSkip(t)
 
@@ -328,7 +328,7 @@ func TestACLDenyAllPort80(t *testing.T) {
 
 // Test to confirm that we can use user:* from one user.
 // This ACL will not allow user1 access its own machines.
-// Reported: https://github.com/juanfont/headscale/issues/699
+// Reported: https://github.com/ori-edge/headscale/issues/699
 func TestACLAllowUserDst(t *testing.T) {
 	IntegrationSkip(t)
 
@@ -385,7 +385,7 @@ func TestACLAllowUserDst(t *testing.T) {
 }
 
 // Test to confirm that we can use *:* from one user
-// Reported: https://github.com/juanfont/headscale/issues/699
+// Reported: https://github.com/ori-edge/headscale/issues/699
 func TestACLAllowStarDst(t *testing.T) {
 	IntegrationSkip(t)
 
@@ -443,7 +443,7 @@ func TestACLAllowStarDst(t *testing.T) {
 
 // This test aims to cover cases where individual hosts are allowed and denied
 // access based on their assigned hostname
-// https://github.com/juanfont/headscale/issues/941
+// https://github.com/ori-edge/headscale/issues/941
 
 //	ACL = [{
 //			"DstPorts": [{

@@ -25,7 +25,7 @@ builds:
     flags:
       - -mod=readonly
     ldflags:
-      - -s -w -X github.com/juanfont/headscale/cmd/headscale/cli.Version=v{{.Version}}
+      - -s -w -X github.com/ori-edge/headscale/cmd/headscale/cli.Version=v{{.Version}}
     tags:
       - ts2019
 
@@ -60,7 +60,7 @@ nfpms:
     priority: optional
     vendor: headscale
     maintainer: Kristoffer Dalby <kristoffer@dalby.cc>
-    homepage: https://github.com/juanfont/headscale
+    homepage: https://github.com/ori-edge/headscale
     license: BSD
     bindir: /usr/bin
     formats:

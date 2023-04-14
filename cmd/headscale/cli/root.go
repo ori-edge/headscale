@@ -5,7 +5,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/juanfont/headscale"
+	"github.com/ori-edge/headscale"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -72,14 +72,14 @@ func initConfig() {
 		if (runtime.GOOS == "linux" || runtime.GOOS == "darwin") &&
 			Version != "dev" {
 			githubTag := &latest.GithubTag{
-				Owner:      "juanfont",
+				Owner:      "ori-edge",
 				Repository: "headscale",
 			}
 			res, err := latest.Check(githubTag, Version)
 			if err == nil && res.Outdated {
 				//nolint
 				fmt.Printf(
-					"An updated version of Headscale has been found (%s vs. your current %s). Check it out https://github.com/juanfont/headscale/releases\n",
+					"An updated version of Headscale has been found (%s vs. your current %s). Check it out https://github.com/ori-edge/headscale/releases\n",
 					res.Current,
 					Version,
 				)
@@ -94,7 +94,7 @@ var rootCmd = &cobra.Command{
 	Long: `
 headscale is an open source implementation of the Tailscale control server
 
-https://github.com/juanfont/headscale`,
+https://github.com/ori-edge/headscale`,
 }
 
 func Execute() {

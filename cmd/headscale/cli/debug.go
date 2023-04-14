@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/juanfont/headscale"
-	v1 "github.com/juanfont/headscale/gen/go/headscale/v1"
+	"github.com/ori-edge/headscale"
+	v1 "github.com/ori-edge/headscale/gen/go/headscale/v1"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/status"

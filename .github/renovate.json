@@ -8,7 +8,7 @@
   "ignorePresets": [":prHourlyLimit2"],
   "enabledManagers": ["dockerfile", "gomod", "github-actions","regex" ],
   "includeForks": true,
-  "repositories": ["juanfont/headscale"],
+  "repositories": ["ori-edge/headscale"],
   "platform": "github",
   "packageRules": [
     {

@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"net/url"
 
-	"github.com/juanfont/headscale/integration/tsic"
+	"github.com/ori-edge/headscale/integration/tsic"
 	"tailscale.com/ipn/ipnstate"
 )
 
