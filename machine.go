@@ -748,9 +748,8 @@ func (h *Headscale) toNode(
 	var hostname string
 	if dnsConfig != nil && dnsConfig.Proxied { // MagicDNS
 		hostname = fmt.Sprintf(
-			"%s.%s.%s",
+			"%s.%s",
 			machine.GivenName,
-			machine.User.Name,
 			baseDomain,
 		)
 		if len(hostname) > maxHostnameLength {
