@@ -345,7 +345,11 @@ func (s *Scenario) RunTailscaleUp(
 				defer user.joinWaitGroup.Done()
 
 				// TODO(kradalby): error handle this
-				_ = c.Up(loginServer, authKey)
+				err := c.Up(loginServer, authKey)
+				if err != nil {
+					log.Printf("error running tailscale up for client %s: %s", client.Hostname(), err)
+
+				}
 			}(client)
 
 			err := client.WaitForReady()

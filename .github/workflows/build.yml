@@ -48,6 +48,8 @@ jobs:
 
           echo "OLD_HASH=$OLD_HASH" >> $GITHUB_OUTPUT
           echo "NEW_HASH=$NEW_HASH" >> $GITHUB_OUTPUT
+          
+          cat build-result
 
           exit $BUILD_STATUS
 
