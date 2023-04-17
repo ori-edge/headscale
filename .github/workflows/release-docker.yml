@@ -16,7 +16,7 @@ jobs:
       - name: Get version
         id: get-version
         run: |
-          echo app_version=$(echo "${GITHUB_REF#refs/tags/}" | cut -c2-) >> $GITHUB_OUTPUT 
+          echo app_version=$(echo "${GITHUB_REF#refs/tags/}" | cut -c2-) >> $GITHUB_OUTPUT
 
   docker-release:
     uses: ori-edge/oge-github-actions/.github/workflows/docker.yml@v0.10.0
