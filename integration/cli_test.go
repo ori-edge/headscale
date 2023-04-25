@@ -14,7 +14,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func executeAndUnmarshal[T any](headscale ControlServer, command []string, result T) error {
+func executeAndUnmarshal[T any](
+	headscale ControlServer,
+	command []string,
+	result T,
+) error {
 	str, err := headscale.Execute(command)
 	if err != nil {
 		return err
@@ -121,7 +125,11 @@ func TestPreAuthKeyCommand(t *testing.T) {
 		user: 0,
 	}
 
-	err = scenario.CreateHeadscaleEnv(spec, []tsic.Option{}, hsic.WithTestName("clipak"))
+	err = scenario.CreateHeadscaleEnv(
+		spec,
+		[]tsic.Option{},
+		hsic.WithTestName("clipak"),
+	)
 	assert.NoError(t, err)
 
 	headscale, err := scenario.Headscale()
@@ -179,7 +187,11 @@ func TestPreAuthKeyCommand(t *testing.T) {
 	assert.Equal(
 		t,
 		[]string{keys[0].Id, keys[1].Id, keys[2].Id},
-		[]string{listedPreAuthKeys[1].Id, listedPreAuthKeys[2].Id, listedPreAuthKeys[3].Id},
+		[]string{
+			listedPreAuthKeys[1].Id,
+			listedPreAuthKeys[2].Id,
+			listedPreAuthKeys[3].Id,
+		},
 	)
 
 	assert.NotEmpty(t, listedPreAuthKeys[1].Key)
@@ -208,7 +220,11 @@ func TestPreAuthKeyCommand(t *testing.T) {
 			continue
 		}
 
-		assert.Equal(t, listedPreAuthKeys[index].AclTags, []string{"tag:test1", "tag:test2"})
+		assert.Equal(
+			t,
+			listedPreAuthKeys[index].AclTags,
+			[]string{"tag:test1", "tag:test2"},
+		)
 	}
 
 	// Test key expiry
@@ -240,9 +256,18 @@ func TestPreAuthKeyCommand(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	assert.True(t, listedPreAuthKeysAfterExpire[1].Expiration.AsTime().Before(time.Now()))
-	assert.True(t, listedPreAuthKeysAfterExpire[2].Expiration.AsTime().After(time.Now()))
-	assert.True(t, listedPreAuthKeysAfterExpire[3].Expiration.AsTime().After(time.Now()))
+	assert.True(
+		t,
+		listedPreAuthKeysAfterExpire[1].Expiration.AsTime().Before(time.Now()),
+	)
+	assert.True(
+		t,
+		listedPreAuthKeysAfterExpire[2].Expiration.AsTime().After(time.Now()),
+	)
+	assert.True(
+		t,
+		listedPreAuthKeysAfterExpire[3].Expiration.AsTime().After(time.Now()),
+	)
 
 	err = scenario.Shutdown()
 	assert.NoError(t, err)
@@ -261,7 +286,11 @@ func TestPreAuthKeyCommandWithoutExpiry(t *testing.T) {
 		user: 0,
 	}
 
-	err = scenario.CreateHeadscaleEnv(spec, []tsic.Option{}, hsic.WithTestName("clipaknaexp"))
+	err = scenario.CreateHeadscaleEnv(
+		spec,
+		[]tsic.Option{},
+		hsic.WithTestName("clipaknaexp"),
+	)
 	assert.NoError(t, err)
 
 	headscale, err := scenario.Headscale()
@@ -326,7 +355,11 @@ func TestPreAuthKeyCommandReusableEphemeral(t *testing.T) {
 		user: 0,
 	}
 
-	err = scenario.CreateHeadscaleEnv(spec, []tsic.Option{}, hsic.WithTestName("clipakresueeph"))
+	err = scenario.CreateHeadscaleEnv(
+		spec,
+		[]tsic.Option{},
+		hsic.WithTestName("clipakresueeph"),
+	)
 	assert.NoError(t, err)
 
 	headscale, err := scenario.Headscale()
@@ -405,7 +438,11 @@ func TestEnablingRoutes(t *testing.T) {
 		user: 3,
 	}
 
-	err = scenario.CreateHeadscaleEnv(spec, []tsic.Option{}, hsic.WithTestName("clienableroute"))
+	err = scenario.CreateHeadscaleEnv(
+		spec,
+		[]tsic.Option{},
+		hsic.WithTestName("clienableroute"),
+	)
 	assert.NoError(t, err)
 
 	allClients, err := scenario.ListTailscaleClients()

@@ -123,7 +123,11 @@ func (s *Suite) TestGetMachineByAnyNodeKey(c *check.C) {
 	}
 	app.db.Save(&machine)
 
-	_, err = app.GetMachineByAnyKey(machineKey.Public(), nodeKey.Public(), oldNodeKey.Public())
+	_, err = app.GetMachineByAnyKey(
+		machineKey.Public(),
+		nodeKey.Public(),
+		oldNodeKey.Public(),
+	)
 	c.Assert(err, check.IsNil)
 }
 
@@ -374,7 +378,9 @@ func (s *Suite) TestGenerateGivenName(c *check.C) {
 	app.db.Save(machine)
 
 	givenName, err := app.GenerateGivenName("machine-key-2", "hostname-2")
-	comment := check.Commentf("Same user, unique machines, unique hostnames, no conflict")
+	comment := check.Commentf(
+		"Same user, unique machines, unique hostnames, no conflict",
+	)
 	c.Assert(err, check.IsNil, comment)
 	c.Assert(givenName, check.Equals, "hostname-2", comment)
 
@@ -386,12 +392,22 @@ func (s *Suite) TestGenerateGivenName(c *check.C) {
 	givenName, err = app.GenerateGivenName("machine-key-2", "hostname-1")
 	comment = check.Commentf("Same user, unique machines, same hostname, conflict")
 	c.Assert(err, check.IsNil, comment)
-	c.Assert(givenName, check.Matches, fmt.Sprintf("^hostname-1-[a-z0-9]{%d}$", MachineGivenNameHashLength), comment)
+	c.Assert(
+		givenName,
+		check.Matches,
+		fmt.Sprintf("^hostname-1-[a-z0-9]{%d}$", MachineGivenNameHashLength),
+		comment,
+	)
 
 	givenName, err = app.GenerateGivenName("machine-key-2", "hostname-1")
 	comment = check.Commentf("Unique users, unique machines, same hostname, conflict")
 	c.Assert(err, check.IsNil, comment)
-	c.Assert(givenName, check.Matches, fmt.Sprintf("^hostname-1-[a-z0-9]{%d}$", MachineGivenNameHashLength), comment)
+	c.Assert(
+		givenName,
+		check.Matches,
+		fmt.Sprintf("^hostname-1-[a-z0-9]{%d}$", MachineGivenNameHashLength),
+		comment,
+	)
 }
 
 func (s *Suite) TestSetTags(c *check.C) {
@@ -1100,7 +1116,9 @@ func TestHeadscale_generateGivenName(t *testing.T) {
 				suppliedName: "testmaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaachine",
 				randomSuffix: false,
 			},
-			want:    regexp.MustCompile("^testmaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaachine$"),
+			want: regexp.MustCompile(
+				"^testmaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaachine$",
+			),
 			wantErr: false,
 		},
 		{
@@ -1116,7 +1134,9 @@ func TestHeadscale_generateGivenName(t *testing.T) {
 				suppliedName: "machineeee12345678901234567890123456789012345678901234567890123",
 				randomSuffix: false,
 			},
-			want:    regexp.MustCompile("^machineeee12345678901234567890123456789012345678901234567890123$"),
+			want: regexp.MustCompile(
+				"^machineeee12345678901234567890123456789012345678901234567890123$",
+			),
 			wantErr: false,
 		},
 		{
@@ -1164,7 +1184,9 @@ func TestHeadscale_generateGivenName(t *testing.T) {
 				suppliedName: "test",
 				randomSuffix: true,
 			},
-			want:    regexp.MustCompile(fmt.Sprintf("^test-[a-z0-9]{%d}$", MachineGivenNameHashLength)),
+			want: regexp.MustCompile(
+				fmt.Sprintf("^test-[a-z0-9]{%d}$", MachineGivenNameHashLength),
+			),
 			wantErr: false,
 		},
 		{
@@ -1180,13 +1202,21 @@ func TestHeadscale_generateGivenName(t *testing.T) {
 				suppliedName: "machineeee12345678901234567890123456789012345678901234567890123",
 				randomSuffix: true,
 			},
-			want:    regexp.MustCompile(fmt.Sprintf("^machineeee1234567890123456789012345678901234567890123-[a-z0-9]{%d}$", MachineGivenNameHashLength)),
+			want: regexp.MustCompile(
+				fmt.Sprintf(
+					"^machineeee1234567890123456789012345678901234567890123-[a-z0-9]{%d}$",
+					MachineGivenNameHashLength,
+				),
+			),
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.h.generateGivenName(tt.args.suppliedName, tt.args.randomSuffix)
+			got, err := tt.h.generateGivenName(
+				tt.args.suppliedName,
+				tt.args.randomSuffix,
+			)
 			if (err != nil) != tt.wantErr {
 				t.Errorf(
 					"Headscale.GenerateGivenName() error = %v, wantErr %v",

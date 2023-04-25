@@ -193,7 +193,11 @@ func TestTailscaleNodesJoiningHeadcale(t *testing.T) {
 		}
 
 		if len(ips) != count*2 {
-			t.Errorf("got the wrong amount of tailscale ips, %d != %d", len(ips), count*2)
+			t.Errorf(
+				"got the wrong amount of tailscale ips, %d != %d",
+				len(ips),
+				count*2,
+			)
 		}
 	})
 

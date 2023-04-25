@@ -63,7 +63,10 @@ func TestOIDCAuthenticationPingAll(t *testing.T) {
 		"HEADSCALE_OIDC_CLIENT_ID":          oidcConfig.ClientID,
 		"CREDENTIALS_DIRECTORY_TEST":        "/tmp",
 		"HEADSCALE_OIDC_CLIENT_SECRET_PATH": "${CREDENTIALS_DIRECTORY_TEST}/hs_client_oidc_secret",
-		"HEADSCALE_OIDC_STRIP_EMAIL_DOMAIN": fmt.Sprintf("%t", oidcConfig.StripEmaildomain),
+		"HEADSCALE_OIDC_STRIP_EMAIL_DOMAIN": fmt.Sprintf(
+			"%t",
+			oidcConfig.StripEmaildomain,
+		),
 	}
 
 	err = scenario.CreateHeadscaleEnv(
@@ -71,7 +74,10 @@ func TestOIDCAuthenticationPingAll(t *testing.T) {
 		hsic.WithTestName("oidcauthping"),
 		hsic.WithConfigEnv(oidcMap),
 		hsic.WithHostnameAsServerURL(),
-		hsic.WithFileInContainer("/tmp/hs_client_oidc_secret", []byte(oidcConfig.ClientSecret)),
+		hsic.WithFileInContainer(
+			"/tmp/hs_client_oidc_secret",
+			[]byte(oidcConfig.ClientSecret),
+		),
 	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
@@ -130,10 +136,13 @@ func TestOIDCExpireNodesBasedOnTokenExpiry(t *testing.T) {
 	}
 
 	oidcMap := map[string]string{
-		"HEADSCALE_OIDC_ISSUER":                oidcConfig.Issuer,
-		"HEADSCALE_OIDC_CLIENT_ID":             oidcConfig.ClientID,
-		"HEADSCALE_OIDC_CLIENT_SECRET":         oidcConfig.ClientSecret,
-		"HEADSCALE_OIDC_STRIP_EMAIL_DOMAIN":    fmt.Sprintf("%t", oidcConfig.StripEmaildomain),
+		"HEADSCALE_OIDC_ISSUER":        oidcConfig.Issuer,
+		"HEADSCALE_OIDC_CLIENT_ID":     oidcConfig.ClientID,
+		"HEADSCALE_OIDC_CLIENT_SECRET": oidcConfig.ClientSecret,
+		"HEADSCALE_OIDC_STRIP_EMAIL_DOMAIN": fmt.Sprintf(
+			"%t",
+			oidcConfig.StripEmaildomain,
+		),
 		"HEADSCALE_OIDC_USE_EXPIRY_FROM_TOKEN": "1",
 	}
 
@@ -167,7 +176,11 @@ func TestOIDCExpireNodesBasedOnTokenExpiry(t *testing.T) {
 	})
 
 	success := pingAllHelper(t, allClients, allAddrs)
-	t.Logf("%d successful pings out of %d (before expiry)", success, len(allClients)*len(allIps))
+	t.Logf(
+		"%d successful pings out of %d (before expiry)",
+		success,
+		len(allClients)*len(allIps),
+	)
 
 	// await all nodes being logged out after OIDC token expiry
 	scenario.WaitForTailscaleLogout()
@@ -213,7 +226,9 @@ func (s *AuthOIDCScenario) CreateHeadscaleEnv(
 	return nil
 }
 
-func (s *AuthOIDCScenario) runMockOIDC(accessTTL time.Duration) (*headscale.OIDCConfig, error) {
+func (s *AuthOIDCScenario) runMockOIDC(
+	accessTTL time.Duration,
+) (*headscale.OIDCConfig, error) {
 	port, err := dockertestutil.RandomFreeHostPort()
 	if err != nil {
 		log.Fatalf("could not find an open port: %s", err)
@@ -332,10 +347,20 @@ func (s *AuthOIDCScenario) runTailscaleUp(
 
 				httpClient := &http.Client{Transport: insecureTransport}
 				ctx := context.Background()
-				req, _ := http.NewRequestWithContext(ctx, http.MethodGet, loginURL.String(), nil)
+				req, _ := http.NewRequestWithContext(
+					ctx,
+					http.MethodGet,
+					loginURL.String(),
+					nil,
+				)
 				resp, err := httpClient.Do(req)
 				if err != nil {
-					log.Printf("%s failed to get login url %s: %s", c.Hostname(), loginURL, err)
+					log.Printf(
+						"%s failed to get login url %s: %s",
+						c.Hostname(),
+						loginURL,
+						err,
+					)
 
 					return
 				}
@@ -354,7 +379,11 @@ func (s *AuthOIDCScenario) runTailscaleUp(
 
 			err = client.WaitForReady()
 			if err != nil {
-				log.Printf("error waiting for client %s to be ready: %s", client.Hostname(), err)
+				log.Printf(
+					"error waiting for client %s to be ready: %s",
+					client.Hostname(),
+					err,
+				)
 			}
 
 			log.Printf("client %s is ready", client.Hostname())

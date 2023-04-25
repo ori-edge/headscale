@@ -41,7 +41,11 @@ func (t *ts2021App) NoisePollNetMapHandler(
 		return
 	}
 
-	machine, err := t.headscale.GetMachineByAnyKey(t.conn.Peer(), mapRequest.NodeKey, key.NodePublic{})
+	machine, err := t.headscale.GetMachineByAnyKey(
+		t.conn.Peer(),
+		mapRequest.NodeKey,
+		key.NodePublic{},
+	)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Warn().

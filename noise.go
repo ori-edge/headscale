@@ -44,7 +44,13 @@ func (h *Headscale) NoiseUpgradeHandler(
 		return
 	}
 
-	noiseConn, err := controlhttp.AcceptHTTP(req.Context(), writer, req, *h.noisePrivateKey, nil)
+	noiseConn, err := controlhttp.AcceptHTTP(
+		req.Context(),
+		writer,
+		req,
+		*h.noisePrivateKey,
+		nil,
+	)
 	if err != nil {
 		log.Error().Err(err).Msg("noise upgrade failed")
 		http.Error(writer, err.Error(), http.StatusInternalServerError)

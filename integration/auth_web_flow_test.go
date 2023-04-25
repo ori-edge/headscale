@@ -269,7 +269,11 @@ func (s *AuthWebFlowScenario) runTailscaleUp(
 
 			err := client.WaitForReady()
 			if err != nil {
-				log.Printf("error waiting for client %s to be ready: %s", client.Hostname(), err)
+				log.Printf(
+					"error waiting for client %s to be ready: %s",
+					client.Hostname(),
+					err,
+				)
 			}
 		}
 		user.joinWaitGroup.Wait()
@@ -289,7 +293,10 @@ func (s *AuthWebFlowScenario) runTailscaleUp(
 	return fmt.Errorf("failed to up tailscale node: %w", errNoUserAvailable)
 }
 
-func (s *AuthWebFlowScenario) runHeadscaleRegister(userStr string, loginURL *url.URL) error {
+func (s *AuthWebFlowScenario) runHeadscaleRegister(
+	userStr string,
+	loginURL *url.URL,
+) error {
 	headscale, err := s.Headscale()
 	if err != nil {
 		return err

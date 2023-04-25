@@ -277,7 +277,10 @@ func New(
 	if hsic.hasTLS() {
 		err = hsic.WriteFile(tlsCertPath, hsic.tlsCert)
 		if err != nil {
-			return nil, fmt.Errorf("failed to write TLS certificate to container: %w", err)
+			return nil, fmt.Errorf(
+				"failed to write TLS certificate to container: %w",
+				err,
+			)
 		}
 
 		err = hsic.WriteFile(tlsKeyPath, hsic.tlsKey)
@@ -473,7 +476,15 @@ func (t *HeadscaleInContainer) CreateAuthKey(
 func (t *HeadscaleInContainer) ListMachinesInUser(
 	user string,
 ) ([]*v1.Machine, error) {
-	command := []string{"headscale", "--user", user, "nodes", "list", "--output", "json"}
+	command := []string{
+		"headscale",
+		"--user",
+		user,
+		"nodes",
+		"list",
+		"--output",
+		"json",
+	}
 
 	result, _, err := dockertestutil.ExecuteCommand(
 		t.container,
@@ -537,9 +548,12 @@ func createCertificate(hostname string) ([]byte, []byte, error) {
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().Add(60 * time.Minute),
 		SubjectKeyId: []byte{1, 2, 3, 4, 6},
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		DNSNames:     []string{hostname},
+		ExtKeyUsage: []x509.ExtKeyUsage{
+			x509.ExtKeyUsageClientAuth,
+			x509.ExtKeyUsageServerAuth,
+		},
+		KeyUsage: x509.KeyUsageDigitalSignature,
+		DNSNames: []string{hostname},
 	}
 
 	certPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)

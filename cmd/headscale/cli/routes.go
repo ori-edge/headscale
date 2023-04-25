@@ -164,7 +164,11 @@ var enableRouteCmd = &cobra.Command{
 		if err != nil {
 			ErrorOutput(
 				err,
-				fmt.Sprintf("Cannot enable route %d: %s", routeID, status.Convert(err).Message()),
+				fmt.Sprintf(
+					"Cannot enable route %d: %s",
+					routeID,
+					status.Convert(err).Message(),
+				),
 				output,
 			)
 
@@ -207,7 +211,11 @@ var disableRouteCmd = &cobra.Command{
 		if err != nil {
 			ErrorOutput(
 				err,
-				fmt.Sprintf("Cannot disable route %d: %s", routeID, status.Convert(err).Message()),
+				fmt.Sprintf(
+					"Cannot disable route %d: %s",
+					routeID,
+					status.Convert(err).Message(),
+				),
 				output,
 			)
 
@@ -250,7 +258,11 @@ var deleteRouteCmd = &cobra.Command{
 		if err != nil {
 			ErrorOutput(
 				err,
-				fmt.Sprintf("Cannot delete route %d: %s", routeID, status.Convert(err).Message()),
+				fmt.Sprintf(
+					"Cannot delete route %d: %s",
+					routeID,
+					status.Convert(err).Message(),
+				),
 				output,
 			)
 
@@ -267,7 +279,9 @@ var deleteRouteCmd = &cobra.Command{
 
 // routesToPtables converts the list of routes to a nice table.
 func routesToPtables(routes []*v1.Route) pterm.TableData {
-	tableData := pterm.TableData{{"ID", "Machine", "Prefix", "Advertised", "Enabled", "Primary"}}
+	tableData := pterm.TableData{
+		{"ID", "Machine", "Prefix", "Advertised", "Enabled", "Primary"},
+	}
 
 	for _, route := range routes {
 		var isPrimaryStr string

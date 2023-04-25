@@ -167,7 +167,12 @@ func (h *Headscale) DERPHandler(
 			string(pubKeyStr))
 	}
 
-	h.DERPServer.tailscaleDERP.Accept(req.Context(), netConn, conn, netConn.RemoteAddr().String())
+	h.DERPServer.tailscaleDERP.Accept(
+		req.Context(),
+		netConn,
+		conn,
+		netConn.RemoteAddr().String(),
+	)
 }
 
 // DERPProbeHandler is the endpoint that js/wasm clients hit to measure

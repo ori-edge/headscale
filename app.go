@@ -112,11 +112,17 @@ func NewHeadscale(cfg *Config) (*Headscale, error) {
 	// TS2021 requires to have a different key from the legacy protocol.
 	noisePrivateKey, err := readOrCreatePrivateKey(cfg.NoisePrivateKeyPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read or create Noise protocol private key: %w", err)
+		return nil, fmt.Errorf(
+			"failed to read or create Noise protocol private key: %w",
+			err,
+		)
 	}
 
 	if privateKey.Equal(*noisePrivateKey) {
-		return nil, fmt.Errorf("private key and noise private key are the same: %w", err)
+		return nil, fmt.Errorf(
+			"private key and noise private key are the same: %w",
+			err,
+		)
 	}
 
 	var dbString string

@@ -163,7 +163,9 @@ func (h *Headscale) UpdateACLRules() error {
 // generateACLPeerCacheMap takes a list of Tailscale filter rules and generates a map
 // of which Sources ("*" and IPs) can access destinations. This is to speed up the
 // process of generating MapResponses when deciding which Peers to inform nodes about.
-func generateACLPeerCacheMap(rules []tailcfg.FilterRule) map[string]map[string]struct{} {
+func generateACLPeerCacheMap(
+	rules []tailcfg.FilterRule,
+) map[string]map[string]struct{} {
 	aclCachePeerMap := make(map[string]map[string]struct{})
 	for _, rule := range rules {
 		for _, srcIP := range rule.SrcIPs {
@@ -187,7 +189,9 @@ func generateACLPeerCacheMap(rules []tailcfg.FilterRule) map[string]map[string]s
 		}
 	}
 
-	log.Trace().Interface("ACL Cache Map", aclCachePeerMap).Msg("ACL Peer Cache Map generated")
+	log.Trace().
+		Interface("ACL Cache Map", aclCachePeerMap).
+		Msg("ACL Peer Cache Map generated")
 
 	return aclCachePeerMap
 }
@@ -241,7 +245,12 @@ func generateACLRules(
 
 		srcIPs := []string{}
 		for innerIndex, src := range acl.Sources {
-			srcs, err := generateACLPolicySrc(machines, aclPolicy, src, stripEmaildomain)
+			srcs, err := generateACLPolicySrc(
+				machines,
+				aclPolicy,
+				src,
+				stripEmaildomain,
+			)
 			if err != nil {
 				log.Error().
 					Msgf("Error parsing ACL %d, Source %d", index, innerIndex)
@@ -421,7 +430,8 @@ func generateACLPolicyDest(
 		maybeIPv6Str := strings.TrimSuffix(dest, ":"+port)
 		log.Trace().Str("maybeIPv6Str", maybeIPv6Str).Msg("")
 
-		if maybeIPv6, err := netip.ParseAddr(maybeIPv6Str); err != nil && !maybeIPv6.Is6() {
+		if maybeIPv6, err := netip.ParseAddr(maybeIPv6Str); err != nil &&
+			!maybeIPv6.Is6() {
 			log.Trace().Err(err).Msg("trying to parse as IPv6")
 
 			return nil, fmt.Errorf(

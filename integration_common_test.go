@@ -252,7 +252,10 @@ func GetEnvBool(key string) (bool, error) {
 	return v, nil
 }
 
-func GetFirstOrCreateNetwork(pool *dockertest.Pool, name string) (dockertest.Network, error) {
+func GetFirstOrCreateNetwork(
+	pool *dockertest.Pool,
+	name string,
+) (dockertest.Network, error) {
 	networks, err := pool.NetworksByName(name)
 	if err != nil || len(networks) == 0 {
 		if _, err := pool.CreateNetwork(name); err == nil {

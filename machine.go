@@ -163,8 +163,16 @@ func (machine *Machine) isEphemeral() bool {
 
 // filterMachinesByACL wrapper function to not have devs pass around locks and maps
 // related to the application outside of tests.
-func (h *Headscale) filterMachinesByACL(currentMachine *Machine, peers Machines) Machines {
-	return filterMachinesByACL(currentMachine, peers, &h.aclPeerCacheMapRW, h.aclPeerCacheMap)
+func (h *Headscale) filterMachinesByACL(
+	currentMachine *Machine,
+	peers Machines,
+) Machines {
+	return filterMachinesByACL(
+		currentMachine,
+		peers,
+		&h.aclPeerCacheMapRW,
+		h.aclPeerCacheMap,
+	)
 }
 
 // filterMachinesByACL returns the list of peers authorized to be accessed from a given machine.
@@ -396,7 +404,10 @@ func (h *Headscale) GetMachine(user string, name string) (*Machine, error) {
 }
 
 // GetMachineByGivenName finds a Machine by given name and user and returns the Machine struct.
-func (h *Headscale) GetMachineByGivenName(user string, givenName string) (*Machine, error) {
+func (h *Headscale) GetMachineByGivenName(
+	user string,
+	givenName string,
+) (*Machine, error) {
 	machines, err := h.ListMachinesByUser(user)
 	if err != nil {
 		return nil, err
@@ -969,7 +980,10 @@ func (h *Headscale) RegisterMachine(machine Machine,
 	// adding it to the registrationCache
 	if len(machine.IPAddresses) > 0 {
 		if err := h.db.Save(&machine).Error; err != nil {
-			return nil, fmt.Errorf("failed register existing machine in the database: %w", err)
+			return nil, fmt.Errorf(
+				"failed register existing machine in the database: %w",
+				err,
+			)
 		}
 
 		log.Trace().
@@ -1214,7 +1228,10 @@ func (h *Headscale) EnableAutoApprovedRoutes(machine *Machine) error {
 	return nil
 }
 
-func (h *Headscale) generateGivenName(suppliedName string, randomSuffix bool) (string, error) {
+func (h *Headscale) generateGivenName(
+	suppliedName string,
+	randomSuffix bool,
+) (string, error) {
 	normalizedHostname, err := NormalizeToFQDNRules(
 		suppliedName,
 		h.cfg.OIDC.StripEmaildomain,
@@ -1241,7 +1258,10 @@ func (h *Headscale) generateGivenName(suppliedName string, randomSuffix bool) (s
 	return normalizedHostname, nil
 }
 
-func (h *Headscale) GenerateGivenName(machineKey string, suppliedName string) (string, error) {
+func (h *Headscale) GenerateGivenName(
+	machineKey string,
+	suppliedName string,
+) (string, error) {
 	givenName, err := h.generateGivenName(suppliedName, false)
 	if err != nil {
 		return "", err

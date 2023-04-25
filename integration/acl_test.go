@@ -12,7 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func aclScenario(t *testing.T, policy *headscale.ACLPolicy, clientsPerUser int) *Scenario {
+func aclScenario(
+	t *testing.T,
+	policy *headscale.ACLPolicy,
+	clientsPerUser int,
+) *Scenario {
 	t.Helper()
 	scenario, err := NewScenario()
 	assert.NoError(t, err)

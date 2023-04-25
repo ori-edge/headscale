@@ -471,7 +471,11 @@ func TestSSUserOnlyIsolation(t *testing.T) {
 	}
 }
 
-func doSSH(t *testing.T, client TailscaleClient, peer TailscaleClient) (string, string, error) {
+func doSSH(
+	t *testing.T,
+	client TailscaleClient,
+	peer TailscaleClient,
+) (string, string, error) {
 	t.Helper()
 
 	peerFQDN, _ := peer.FQDN()
@@ -496,7 +500,11 @@ func assertSSHHostname(t *testing.T, client TailscaleClient, peer TailscaleClien
 	assert.Contains(t, peer.ID(), strings.ReplaceAll(result, "\n", ""))
 }
 
-func assertSSHPermissionDenied(t *testing.T, client TailscaleClient, peer TailscaleClient) {
+func assertSSHPermissionDenied(
+	t *testing.T,
+	client TailscaleClient,
+	peer TailscaleClient,
+) {
 	t.Helper()
 
 	result, stderr, err := doSSH(t, client, peer)

@@ -13,8 +13,8 @@ This includes running Headscale with SystemD.
 ## Migrating from manual install
 
 1. Download the latest [`headscale` binary from GitHub's release page](https://github.com/ori-edge/headscale/releases):
-If you are migrating from the old manual install, the best thing would be to remove
-the files installed by following [the guide in reverse](./running-headscale-linux-manual.md).
+   If you are migrating from the old manual install, the best thing would be to remove
+   the files installed by following [the guide in reverse](./running-headscale-linux-manual.md).
 
 You should _not_ delete the database (`/var/headscale/db.sqlite`) and the
 configuration (`/etc/headscale/config.yaml`).

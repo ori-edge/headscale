@@ -346,7 +346,11 @@ func (s *IntegrationCLITestSuite) TestPreAuthKeyCommand() {
 
 	// Test that tags are present
 	for i := 0; i < count; i++ {
-		assert.Equal(s.T(), listedPreAuthKeys[i].AclTags, []string{"tag:test1", "tag:test2"})
+		assert.Equal(
+			s.T(),
+			listedPreAuthKeys[i].AclTags,
+			[]string{"tag:test1", "tag:test2"},
+		)
 	}
 
 	// Expire three keys
@@ -1562,7 +1566,9 @@ func (s *IntegrationCLITestSuite) TestLoadConfigFromCommand() {
 	assert.Nil(s.T(), err)
 	altConfig, err := os.ReadFile("integration_test/etc/alt-config.dump.gold.yaml")
 	assert.Nil(s.T(), err)
-	altEnvConfig, err := os.ReadFile("integration_test/etc/alt-env-config.dump.gold.yaml")
+	altEnvConfig, err := os.ReadFile(
+		"integration_test/etc/alt-env-config.dump.gold.yaml",
+	)
 	assert.Nil(s.T(), err)
 
 	_, _, err = ExecuteCommand(

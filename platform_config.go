@@ -255,7 +255,9 @@ func (h *Headscale) ApplePlatformConfig(
 		writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		writer.WriteHeader(http.StatusBadRequest)
 		_, err := writer.Write(
-			[]byte("Invalid platform. Only ios, macos-app-store and macos-standalone are supported"),
+			[]byte(
+				"Invalid platform. Only ios, macos-app-store and macos-standalone are supported",
+			),
 		)
 		if err != nil {
 			log.Error().
@@ -390,7 +392,8 @@ var macosAppStoreTemplate = template.Must(template.New("macosTemplate").Parse(`
     </dict>
 `))
 
-var macosStandaloneTemplate = template.Must(template.New("macosStandaloneTemplate").Parse(`
+var macosStandaloneTemplate = template.Must(
+	template.New("macosStandaloneTemplate").Parse(`
     <dict>
         <key>PayloadType</key>
         <string>io.tailscale.ipn.macsys</string>
@@ -405,4 +408,5 @@ var macosStandaloneTemplate = template.Must(template.New("macosStandaloneTemplat
         <key>ControlURL</key>
         <string>{{.URL}}</string>
     </dict>
-`))
+`),
+)

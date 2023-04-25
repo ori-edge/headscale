@@ -59,7 +59,11 @@ func (h *Headscale) CreatePreAuthKey(
 
 	for _, tag := range aclTags {
 		if !strings.HasPrefix(tag, "tag:") {
-			return nil, fmt.Errorf("%w: '%s' did not begin with 'tag:'", ErrPreAuthKeyACLTagInvalid, tag)
+			return nil, fmt.Errorf(
+				"%w: '%s' did not begin with 'tag:'",
+				ErrPreAuthKeyACLTagInvalid,
+				tag,
+			)
 		}
 	}
 

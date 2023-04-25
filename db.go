@@ -97,7 +97,8 @@ func (h *Headscale) initDB() error {
 	}
 
 	if db.Migrator().HasColumn(&Machine{}, "enabled_routes") {
-		log.Info().Msgf("Database has legacy enabled_routes column in machine, migrating...")
+		log.Info().
+			Msgf("Database has legacy enabled_routes column in machine, migrating...")
 
 		type MachineAux struct {
 			ID            uint64
@@ -105,7 +106,10 @@ func (h *Headscale) initDB() error {
 		}
 
 		machinesAux := []MachineAux{}
-		err := db.Table("machines").Select("id, enabled_routes").Scan(&machinesAux).Error
+		err := db.Table("machines").
+			Select("id, enabled_routes").
+			Scan(&machinesAux).
+			Error
 		if err != nil {
 			log.Fatal().Err(err).Msg("Error accessing db")
 		}

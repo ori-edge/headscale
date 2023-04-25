@@ -96,7 +96,9 @@ func (h *Headscale) RegisterWebAPI(
 	nodeKeyStr, ok := vars["nkey"]
 
 	if !NodePublicKeyRegex.Match([]byte(nodeKeyStr)) {
-		log.Warn().Str("node_key", nodeKeyStr).Msg("Invalid node key passed to registration url")
+		log.Warn().
+			Str("node_key", nodeKeyStr).
+			Msg("Invalid node key passed to registration url")
 
 		writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		writer.WriteHeader(http.StatusUnauthorized)

@@ -39,7 +39,8 @@ func (r *Route) String() string {
 }
 
 func (r *Route) isExitRoute() bool {
-	return netip.Prefix(r.Prefix) == ExitRouteV4 || netip.Prefix(r.Prefix) == ExitRouteV6
+	return netip.Prefix(r.Prefix) == ExitRouteV4 ||
+		netip.Prefix(r.Prefix) == ExitRouteV6
 }
 
 func (rs Routes) toPrefixes() []netip.Prefix {
@@ -94,7 +95,11 @@ func (h *Headscale) EnableRoute(id uint64) error {
 	// be enabled at the same time, as per
 	// https://github.com/ori-edge/headscale/issues/804#issuecomment-1399314002
 	if route.isExitRoute() {
-		return h.enableRoutes(&route.Machine, ExitRouteV4.String(), ExitRouteV6.String())
+		return h.enableRoutes(
+			&route.Machine,
+			ExitRouteV4.String(),
+			ExitRouteV6.String(),
+		)
 	}
 
 	return h.enableRoutes(&route.Machine, netip.Prefix(route.Prefix).String())

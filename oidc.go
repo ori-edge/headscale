@@ -24,9 +24,15 @@ const (
 
 	errEmptyOIDCCallbackParams = Error("empty OIDC callback params")
 	errNoOIDCIDToken           = Error("could not extract ID Token for OIDC callback")
-	errOIDCAllowedDomains      = Error("authenticated principal does not match any allowed domain")
-	errOIDCAllowedGroups       = Error("authenticated principal is not in any allowed group")
-	errOIDCAllowedUsers        = Error("authenticated principal does not match any allowed user")
+	errOIDCAllowedDomains      = Error(
+		"authenticated principal does not match any allowed domain",
+	)
+	errOIDCAllowedGroups = Error(
+		"authenticated principal is not in any allowed group",
+	)
+	errOIDCAllowedUsers = Error(
+		"authenticated principal does not match any allowed user",
+	)
 	errOIDCInvalidMachineState = Error(
 		"requested machine state key expired before authorisation completed",
 	)
@@ -95,7 +101,9 @@ func (h *Headscale) RegisterOIDC(
 		Msg("Received oidc register call")
 
 	if !NodePublicKeyRegex.Match([]byte(nodeKeyStr)) {
-		log.Warn().Str("node_key", nodeKeyStr).Msg("Invalid node key passed to registration url")
+		log.Warn().
+			Str("node_key", nodeKeyStr).
+			Msg("Invalid node key passed to registration url")
 
 		writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		writer.WriteHeader(http.StatusUnauthorized)
@@ -149,7 +157,11 @@ func (h *Headscale) RegisterOIDC(
 	stateStr := hex.EncodeToString(randomBlob)[:32]
 
 	// place the node key into the state cache, so it can be retrieved later
-	h.registrationCache.Set(stateStr, NodePublicKeyStripPrefix(nodeKey), registerCacheExpiration)
+	h.registrationCache.Set(
+		stateStr,
+		NodePublicKeyStripPrefix(nodeKey),
+		registerCacheExpiration,
+	)
 
 	// Add any extra parameter provided in the configuration to the Authorize Endpoint request
 	extras := make([]oauth2.AuthCodeOption, 0, len(h.cfg.OIDC.ExtraParams))

@@ -10,7 +10,10 @@ import (
 
 var ErrContainerNotFound = errors.New("container not found")
 
-func GetFirstOrCreateNetwork(pool *dockertest.Pool, name string) (*dockertest.Network, error) {
+func GetFirstOrCreateNetwork(
+	pool *dockertest.Pool,
+	name string,
+) (*dockertest.Network, error) {
 	networks, err := pool.NetworksByName(name)
 	if err != nil || len(networks) == 0 {
 		if _, err := pool.CreateNetwork(name); err == nil {
@@ -43,9 +46,12 @@ func AddContainerToNetwork(
 		return err
 	}
 
-	err = pool.Client.ConnectNetwork(network.Network.ID, docker.NetworkConnectionOptions{
-		Container: containers[0].ID,
-	})
+	err = pool.Client.ConnectNetwork(
+		network.Network.ID,
+		docker.NetworkConnectionOptions{
+			Container: containers[0].ID,
+		},
+	)
 	if err != nil {
 		return err
 	}

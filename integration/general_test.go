@@ -30,7 +30,11 @@ func TestPingAllByIP(t *testing.T) {
 		"user2": len(TailscaleVersions),
 	}
 
-	err = scenario.CreateHeadscaleEnv(spec, []tsic.Option{}, hsic.WithTestName("pingallbyip"))
+	err = scenario.CreateHeadscaleEnv(
+		spec,
+		[]tsic.Option{},
+		hsic.WithTestName("pingallbyip"),
+	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
 	}
@@ -77,7 +81,11 @@ func TestAuthKeyLogoutAndRelogin(t *testing.T) {
 		"user2": len(TailscaleVersions),
 	}
 
-	err = scenario.CreateHeadscaleEnv(spec, []tsic.Option{}, hsic.WithTestName("pingallbyip"))
+	err = scenario.CreateHeadscaleEnv(
+		spec,
+		[]tsic.Option{},
+		hsic.WithTestName("pingallbyip"),
+	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
 	}
@@ -216,7 +224,11 @@ func TestEphemeral(t *testing.T) {
 			t.Errorf("failed to create user %s: %s", userName, err)
 		}
 
-		err = scenario.CreateTailscaleNodesInUser(userName, "all", clientCount, []tsic.Option{}...)
+		err = scenario.CreateTailscaleNodesInUser(
+			userName,
+			"all",
+			clientCount,
+			[]tsic.Option{}...)
 		if err != nil {
 			t.Errorf("failed to create tailscale nodes in user %s: %s", userName, err)
 		}
@@ -302,7 +314,11 @@ func TestPingAllByHostname(t *testing.T) {
 		"user4": len(TailscaleVersions) - 1,
 	}
 
-	err = scenario.CreateHeadscaleEnv(spec, []tsic.Option{}, hsic.WithTestName("pingallbyname"))
+	err = scenario.CreateHeadscaleEnv(
+		spec,
+		[]tsic.Option{},
+		hsic.WithTestName("pingallbyname"),
+	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
 	}
@@ -363,7 +379,11 @@ func TestTaildrop(t *testing.T) {
 		"taildrop": len(TailscaleVersions) - 1,
 	}
 
-	err = scenario.CreateHeadscaleEnv(spec, []tsic.Option{}, hsic.WithTestName("taildrop"))
+	err = scenario.CreateHeadscaleEnv(
+		spec,
+		[]tsic.Option{},
+		hsic.WithTestName("taildrop"),
+	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
 	}
@@ -385,10 +405,17 @@ func TestTaildrop(t *testing.T) {
 	}
 
 	for _, client := range allClients {
-		command := []string{"touch", fmt.Sprintf("/tmp/file_from_%s", client.Hostname())}
+		command := []string{
+			"touch",
+			fmt.Sprintf("/tmp/file_from_%s", client.Hostname()),
+		}
 
 		if _, _, err := client.Execute(command); err != nil {
-			t.Errorf("failed to create taildrop file on %s, err: %s", client.Hostname(), err)
+			t.Errorf(
+				"failed to create taildrop file on %s, err: %s",
+				client.Hostname(),
+				err,
+			)
 		}
 
 		for _, peer := range allClients {
@@ -399,31 +426,34 @@ func TestTaildrop(t *testing.T) {
 			// It is safe to ignore this error as we handled it when caching it
 			peerFQDN, _ := peer.FQDN()
 
-			t.Run(fmt.Sprintf("%s-%s", client.Hostname(), peer.Hostname()), func(t *testing.T) {
-				command := []string{
-					"tailscale", "file", "cp",
-					fmt.Sprintf("/tmp/file_from_%s", client.Hostname()),
-					fmt.Sprintf("%s:", peerFQDN),
-				}
+			t.Run(
+				fmt.Sprintf("%s-%s", client.Hostname(), peer.Hostname()),
+				func(t *testing.T) {
+					command := []string{
+						"tailscale", "file", "cp",
+						fmt.Sprintf("/tmp/file_from_%s", client.Hostname()),
+						fmt.Sprintf("%s:", peerFQDN),
+					}
 
-				err := retry(10, 1*time.Second, func() error {
-					t.Logf(
-						"Sending file from %s to %s\n",
-						client.Hostname(),
-						peer.Hostname(),
-					)
-					_, _, err := client.Execute(command)
+					err := retry(10, 1*time.Second, func() error {
+						t.Logf(
+							"Sending file from %s to %s\n",
+							client.Hostname(),
+							peer.Hostname(),
+						)
+						_, _, err := client.Execute(command)
 
-					return err
-				})
-				if err != nil {
-					t.Errorf(
-						"failed to send taildrop file on %s, err: %s",
-						client.Hostname(),
-						err,
-					)
-				}
-			})
+						return err
+					})
+					if err != nil {
+						t.Errorf(
+							"failed to send taildrop file on %s, err: %s",
+							client.Hostname(),
+							err,
+						)
+					}
+				},
+			)
 		}
 	}
 
@@ -434,7 +464,11 @@ func TestTaildrop(t *testing.T) {
 			"/tmp/",
 		}
 		if _, _, err := client.Execute(command); err != nil {
-			t.Errorf("failed to get taildrop file on %s, err: %s", client.Hostname(), err)
+			t.Errorf(
+				"failed to get taildrop file on %s, err: %s",
+				client.Hostname(),
+				err,
+			)
 		}
 
 		for _, peer := range allClients {
@@ -442,31 +476,34 @@ func TestTaildrop(t *testing.T) {
 				continue
 			}
 
-			t.Run(fmt.Sprintf("%s-%s", client.Hostname(), peer.Hostname()), func(t *testing.T) {
-				command := []string{
-					"ls",
-					fmt.Sprintf("/tmp/file_from_%s", peer.Hostname()),
-				}
-				log.Printf(
-					"Checking file in %s from %s\n",
-					client.Hostname(),
-					peer.Hostname(),
-				)
-
-				result, _, err := client.Execute(command)
-				if err != nil {
-					t.Errorf("failed to execute command to ls taildrop: %s", err)
-				}
-
-				log.Printf("Result for %s: %s\n", peer.Hostname(), result)
-				if fmt.Sprintf("/tmp/file_from_%s\n", peer.Hostname()) != result {
-					t.Errorf(
-						"taildrop result is not correct %s, wanted %s",
-						result,
-						fmt.Sprintf("/tmp/file_from_%s\n", peer.Hostname()),
+			t.Run(
+				fmt.Sprintf("%s-%s", client.Hostname(), peer.Hostname()),
+				func(t *testing.T) {
+					command := []string{
+						"ls",
+						fmt.Sprintf("/tmp/file_from_%s", peer.Hostname()),
+					}
+					log.Printf(
+						"Checking file in %s from %s\n",
+						client.Hostname(),
+						peer.Hostname(),
 					)
-				}
-			})
+
+					result, _, err := client.Execute(command)
+					if err != nil {
+						t.Errorf("failed to execute command to ls taildrop: %s", err)
+					}
+
+					log.Printf("Result for %s: %s\n", peer.Hostname(), result)
+					if fmt.Sprintf("/tmp/file_from_%s\n", peer.Hostname()) != result {
+						t.Errorf(
+							"taildrop result is not correct %s, wanted %s",
+							result,
+							fmt.Sprintf("/tmp/file_from_%s\n", peer.Hostname()),
+						)
+					}
+				},
+			)
 		}
 	}
 
@@ -491,7 +528,11 @@ func TestResolveMagicDNS(t *testing.T) {
 		"magicdns2": len(TailscaleVersions) - 1,
 	}
 
-	err = scenario.CreateHeadscaleEnv(spec, []tsic.Option{}, hsic.WithTestName("magicdns"))
+	err = scenario.CreateHeadscaleEnv(
+		spec,
+		[]tsic.Option{},
+		hsic.WithTestName("magicdns"),
+	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
 	}
@@ -572,7 +613,11 @@ func TestExpireNode(t *testing.T) {
 		"user1": len(TailscaleVersions),
 	}
 
-	err = scenario.CreateHeadscaleEnv(spec, []tsic.Option{}, hsic.WithTestName("expirenode"))
+	err = scenario.CreateHeadscaleEnv(
+		spec,
+		[]tsic.Option{},
+		hsic.WithTestName("expirenode"),
+	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
 	}
@@ -597,7 +642,11 @@ func TestExpireNode(t *testing.T) {
 	})
 
 	success := pingAllHelper(t, allClients, allAddrs)
-	t.Logf("before expire: %d successful pings out of %d", success, len(allClients)*len(allIps))
+	t.Logf(
+		"before expire: %d successful pings out of %d",
+		success,
+		len(allClients)*len(allIps),
+	)
 
 	for _, client := range allClients {
 		status, err := client.Status()
@@ -632,7 +681,10 @@ func TestExpireNode(t *testing.T) {
 		for _, peerKey := range status.Peers() {
 			peerStatus := status.Peer[peerKey]
 
-			peerPublicKey := strings.TrimPrefix(peerStatus.PublicKey.String(), "nodekey:")
+			peerPublicKey := strings.TrimPrefix(
+				peerStatus.PublicKey.String(),
+				"nodekey:",
+			)
 
 			assert.NotEqual(t, machine.NodeKey, peerPublicKey)
 		}

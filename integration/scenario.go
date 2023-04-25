@@ -350,7 +350,11 @@ func (s *Scenario) RunTailscaleUp(
 
 			err := client.WaitForReady()
 			if err != nil {
-				log.Printf("error waiting for client %s to be ready: %s", client.Hostname(), err)
+				log.Printf(
+					"error waiting for client %s to be ready: %s",
+					client.Hostname(),
+					err,
+				)
 			}
 		}
 

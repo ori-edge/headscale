@@ -102,7 +102,11 @@ func (h *Headscale) handleRegisterCommon(
 	isNoise bool,
 ) {
 	now := time.Now().UTC()
-	machine, err := h.GetMachineByAnyKey(machineKey, registerRequest.NodeKey, registerRequest.OldNodeKey)
+	machine, err := h.GetMachineByAnyKey(
+		machineKey,
+		registerRequest.NodeKey,
+		registerRequest.OldNodeKey,
+	)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// If the machine has AuthKey set, handle registration via PreAuthKeys
 		if registerRequest.Auth.AuthKey != "" {
@@ -135,7 +139,12 @@ func (h *Headscale) handleRegisterCommon(
 				case <-req.Context().Done():
 					return
 				case <-time.After(registrationHoldoff):
-					h.handleNewMachineCommon(writer, registerRequest, machineKey, isNoise)
+					h.handleNewMachineCommon(
+						writer,
+						registerRequest,
+						machineKey,
+						isNoise,
+					)
 
 					return
 				}
@@ -244,7 +253,12 @@ func (h *Headscale) handleRegisterCommon(
 			// If machine is not expired, and it is register, we have a already accepted this machine,
 			// let it proceed with a valid registration
 			if !machine.isExpired() {
-				h.handleMachineValidRegistrationCommon(writer, *machine, machineKey, isNoise)
+				h.handleMachineValidRegistrationCommon(
+					writer,
+					*machine,
+					machineKey,
+					isNoise,
+				)
 
 				return
 			}
@@ -273,7 +287,13 @@ func (h *Headscale) handleRegisterCommon(
 		}
 
 		// The machine has expired or it is logged out
-		h.handleMachineExpiredOrLoggedOutCommon(writer, registerRequest, *machine, machineKey, isNoise)
+		h.handleMachineExpiredOrLoggedOutCommon(
+			writer,
+			registerRequest,
+			*machine,
+			machineKey,
+			isNoise,
+		)
 
 		// TODO(juan): RegisterRequest includes an Expiry time, that we could optionally use
 		machine.Expiry = &time.Time{}
@@ -378,7 +398,11 @@ func (h *Headscale) handleAuthKeyCommon(
 	// The error is not important, because if it does not
 	// exist, then this is a new machine and we will move
 	// on to registration.
-	machine, _ := h.GetMachineByAnyKey(machineKey, registerRequest.NodeKey, registerRequest.OldNodeKey)
+	machine, _ := h.GetMachineByAnyKey(
+		machineKey,
+		registerRequest.NodeKey,
+		registerRequest.OldNodeKey,
+	)
 	if machine != nil {
 		log.Trace().
 			Caller().

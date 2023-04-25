@@ -1062,7 +1062,9 @@ func Test_expandAlias(t *testing.T) {
 					{
 						IPAddresses: MachineAddresses{
 							netip.MustParseAddr("10.0.0.1"),
-							netip.MustParseAddr("fd7a:115c:a1e0:ab12:4843:2222:6273:2222"),
+							netip.MustParseAddr(
+								"fd7a:115c:a1e0:ab12:4843:2222:6273:2222",
+							),
 						},
 						User: User{Name: "mickael"},
 					},
@@ -1081,7 +1083,9 @@ func Test_expandAlias(t *testing.T) {
 					{
 						IPAddresses: MachineAddresses{
 							netip.MustParseAddr("10.0.0.1"),
-							netip.MustParseAddr("fd7a:115c:a1e0:ab12:4843:2222:6273:2222"),
+							netip.MustParseAddr(
+								"fd7a:115c:a1e0:ab12:4843:2222:6273:2222",
+							),
 						},
 						User: User{Name: "mickael"},
 					},
@@ -1672,7 +1676,10 @@ func Test_expandACLPeerAddr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := expandACLPeerAddr(tt.args.srcIP); !reflect.DeepEqual(got, tt.want) {
+			if got := expandACLPeerAddr(tt.args.srcIP); !reflect.DeepEqual(
+				got,
+				tt.want,
+			) {
 				t.Errorf("expandACLPeerAddr() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1741,7 +1748,10 @@ func Test_expandACLPeerAddrV6(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := expandACLPeerAddr(tt.args.srcIP); !reflect.DeepEqual(got, tt.want) {
+			if got := expandACLPeerAddr(tt.args.srcIP); !reflect.DeepEqual(
+				got,
+				tt.want,
+			) {
 				t.Errorf("expandACLPeerAddr() = %v, want %v", got, tt.want)
 			}
 		})

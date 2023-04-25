@@ -14,7 +14,10 @@ type TailscaleClient interface {
 	Hostname() string
 	Shutdown() error
 	Version() string
-	Execute(command []string, options ...dockertestutil.ExecuteCommandOption) (string, string, error)
+	Execute(
+		command []string,
+		options ...dockertestutil.ExecuteCommandOption,
+	) (string, string, error)
 	Up(loginServer, authKey string) error
 	UpWithLoginURL(loginServer string) (*url.URL, error)
 	Logout() error

@@ -221,7 +221,10 @@ func New(
 	if tsic.hasTLS() {
 		err = tsic.WriteFile(headscaleCertPath, tsic.headscaleCert)
 		if err != nil {
-			return nil, fmt.Errorf("failed to write TLS certificate to container: %w", err)
+			return nil, fmt.Errorf(
+				"failed to write TLS certificate to container: %w",
+				err,
+			)
 		}
 	}
 

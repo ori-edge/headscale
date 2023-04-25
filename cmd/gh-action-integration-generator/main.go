@@ -153,7 +153,10 @@ func main() {
 			log.Fatalf("failed to render template: %s", err)
 		}
 
-		testPath := path.Join(githubWorkflowPath, fmt.Sprintf(jobFileNameTemplate, test))
+		testPath := path.Join(
+			githubWorkflowPath,
+			fmt.Sprintf(jobFileNameTemplate, test),
+		)
 
 		err := os.WriteFile(testPath, content.Bytes(), workflowFilePerm)
 		if err != nil {

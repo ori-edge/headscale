@@ -103,7 +103,11 @@ func (s *EmbeddedDERPServerScenario) CreateHeadscaleEnv(
 		return err
 	}
 
-	headscaleURL.Host = fmt.Sprintf("%s:%s", hsServer.GetHostname(), headscaleURL.Port())
+	headscaleURL.Host = fmt.Sprintf(
+		"%s:%s",
+		hsServer.GetHostname(),
+		headscaleURL.Port(),
+	)
 
 	err = hsServer.WaitForReady()
 	if err != nil {
@@ -169,14 +173,22 @@ func (s *EmbeddedDERPServerScenario) CreateTailscaleIsolatedNodesInUser(
 				networkName,
 			)
 			if err != nil {
-				return fmt.Errorf("failed to create or get %s network: %w", networkName, err)
+				return fmt.Errorf(
+					"failed to create or get %s network: %w",
+					networkName,
+					err,
+				)
 			}
 
 			s.tsicNetworks[networkName] = network
 
 			err = hsServer.ConnectToNetwork(network)
 			if err != nil {
-				return fmt.Errorf("failed to connect headscale to %s network: %w", networkName, err)
+				return fmt.Errorf(
+					"failed to connect headscale to %s network: %w",
+					networkName,
+					err,
+				)
 			}
 
 			version := requestedVersion

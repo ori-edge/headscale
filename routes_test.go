@@ -388,7 +388,12 @@ func (s *Suite) TestAllowedIPRoutes(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	hostInfo1 := tailcfg.Hostinfo{
-		RoutableIPs: []netip.Prefix{prefix, prefix2, prefixExitNodeV4, prefixExitNodeV6},
+		RoutableIPs: []netip.Prefix{
+			prefix,
+			prefix2,
+			prefixExitNodeV4,
+			prefixExitNodeV6,
+		},
 	}
 
 	nodeKey := key.NewNode()

@@ -23,11 +23,18 @@ func (h *Headscale) getMapResponseData(
 	}
 
 	if isNoise {
-		return h.marshalMapResponse(mapResponse, key.MachinePublic{}, mapRequest.Compress, isNoise)
+		return h.marshalMapResponse(
+			mapResponse,
+			key.MachinePublic{},
+			mapRequest.Compress,
+			isNoise,
+		)
 	}
 
 	var machineKey key.MachinePublic
-	err = machineKey.UnmarshalText([]byte(MachinePublicKeyEnsurePrefix(machine.MachineKey)))
+	err = machineKey.UnmarshalText(
+		[]byte(MachinePublicKeyEnsurePrefix(machine.MachineKey)),
+	)
 	if err != nil {
 		log.Error().
 			Caller().
@@ -50,11 +57,18 @@ func (h *Headscale) getMapKeepAliveResponseData(
 	}
 
 	if isNoise {
-		return h.marshalMapResponse(keepAliveResponse, key.MachinePublic{}, mapRequest.Compress, isNoise)
+		return h.marshalMapResponse(
+			keepAliveResponse,
+			key.MachinePublic{},
+			mapRequest.Compress,
+			isNoise,
+		)
 	}
 
 	var machineKey key.MachinePublic
-	err := machineKey.UnmarshalText([]byte(MachinePublicKeyEnsurePrefix(machine.MachineKey)))
+	err := machineKey.UnmarshalText(
+		[]byte(MachinePublicKeyEnsurePrefix(machine.MachineKey)),
+	)
 	if err != nil {
 		log.Error().
 			Caller().
@@ -64,7 +78,12 @@ func (h *Headscale) getMapKeepAliveResponseData(
 		return nil, err
 	}
 
-	return h.marshalMapResponse(keepAliveResponse, machineKey, mapRequest.Compress, isNoise)
+	return h.marshalMapResponse(
+		keepAliveResponse,
+		machineKey,
+		mapRequest.Compress,
+		isNoise,
+	)
 }
 
 func (h *Headscale) marshalResponse(
