@@ -40,7 +40,11 @@ func TestAuthWebFlowAuthenticationPingAll(t *testing.T) {
 		"user2": len(TailscaleVersions),
 	}
 
-	err = scenario.CreateHeadscaleEnv(spec, hsic.WithTestName("webauthping"))
+	err = scenario.CreateHeadscaleEnv(
+		spec,
+		hsic.WithTestName("webauthping"),
+		hsic.WithACLPolicy(&allowAllPolicy),
+	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
 	}
@@ -91,7 +95,11 @@ func TestAuthWebFlowLogoutAndRelogin(t *testing.T) {
 		"user2": len(TailscaleVersions),
 	}
 
-	err = scenario.CreateHeadscaleEnv(spec, hsic.WithTestName("weblogout"))
+	err = scenario.CreateHeadscaleEnv(
+		spec,
+		hsic.WithTestName("weblogout"),
+		hsic.WithACLPolicy(&allowAllPolicy),
+	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
 	}

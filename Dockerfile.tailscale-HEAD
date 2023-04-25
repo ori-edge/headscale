@@ -1,6 +1,6 @@
 FROM golang:1.20
 
-RUN apt-get update \
+RUN apt-get -y update \
     && apt-get install -y ca-certificates dnsutils git iptables ssh \
     && rm -rf /var/lib/apt/lists/*
 
