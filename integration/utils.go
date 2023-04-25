@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/juanfont/headscale/integration/tsic"
+	"github.com/ori-edge/headscale/integration/tsic"
 )
 
 const (
