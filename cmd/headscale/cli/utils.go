@@ -84,7 +84,11 @@ func getHeadscaleCLIClient() (context.Context, v1.HeadscaleServiceClient, *grpc.
 
 		// Try to give the user better feedback if we cannot write to the headscale
 		// socket.
-		socket, err := os.OpenFile(cfg.UnixSocket, os.O_WRONLY, SocketWritePermissions) //nolint
+		socket, err := os.OpenFile(
+			cfg.UnixSocket,
+			os.O_WRONLY,
+			SocketWritePermissions,
+		) //nolint
 		if err != nil {
 			if os.IsPermission(err) {
 				log.Fatal().

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ori-edge/headscale"
 	v1 "github.com/ori-edge/headscale/gen/go/headscale/v1"
 	"github.com/ori-edge/headscale/integration/hsic"
 	"github.com/ori-edge/headscale/integration/tsic"
@@ -15,6 +16,16 @@ import (
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 )
+
+var allowAllPolicy = headscale.ACLPolicy{
+	ACLs: []headscale.ACL{
+		{
+			Action:       "accept",
+			Sources:      []string{"*"},
+			Destinations: []string{"*:*"},
+		},
+	},
+}
 
 func TestPingAllByIP(t *testing.T) {
 	IntegrationSkip(t)
@@ -34,6 +45,7 @@ func TestPingAllByIP(t *testing.T) {
 		spec,
 		[]tsic.Option{},
 		hsic.WithTestName("pingallbyip"),
+		hsic.WithACLPolicy(&allowAllPolicy),
 	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
@@ -84,7 +96,8 @@ func TestAuthKeyLogoutAndRelogin(t *testing.T) {
 	err = scenario.CreateHeadscaleEnv(
 		spec,
 		[]tsic.Option{},
-		hsic.WithTestName("pingallbyip"),
+		hsic.WithTestName("authkeyrelogin"),
+		hsic.WithACLPolicy(&allowAllPolicy),
 	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
@@ -213,7 +226,10 @@ func TestEphemeral(t *testing.T) {
 		"user2": len(TailscaleVersions),
 	}
 
-	headscale, err := scenario.Headscale(hsic.WithTestName("ephemeral"))
+	headscale, err := scenario.Headscale(
+		hsic.WithTestName("ephemeral"),
+		hsic.WithACLPolicy(&allowAllPolicy),
+	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
 	}
@@ -318,6 +334,7 @@ func TestPingAllByHostname(t *testing.T) {
 		spec,
 		[]tsic.Option{},
 		hsic.WithTestName("pingallbyname"),
+		hsic.WithACLPolicy(&allowAllPolicy),
 	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
@@ -532,6 +549,7 @@ func TestResolveMagicDNS(t *testing.T) {
 		spec,
 		[]tsic.Option{},
 		hsic.WithTestName("magicdns"),
+		hsic.WithACLPolicy(&allowAllPolicy),
 	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)

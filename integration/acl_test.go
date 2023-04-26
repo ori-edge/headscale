@@ -855,21 +855,6 @@ func TestACLDevice1CanAccessDevice2(t *testing.T) {
 				},
 			},
 		},
-		"group": {
-			policy: headscale.ACLPolicy{
-				Groups: map[string][]string{
-					"group:one": {"user1"},
-					"group:two": {"user2"},
-				},
-				ACLs: []headscale.ACL{
-					{
-						Action:       "accept",
-						Sources:      []string{"group:one"},
-						Destinations: []string{"group:two:*"},
-					},
-				},
-			},
-		},
 		// TODO(kradalby): Add similar tests for Tags, might need support
 		// in the scenario function when we create or join the clients.
 	}

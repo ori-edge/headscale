@@ -389,8 +389,13 @@ func (t *HeadscaleInContainer) WaitForReady() error {
 	client := &http.Client{}
 
 	if t.hasTLS() {
-		insecureTransport := http.DefaultTransport.(*http.Transport).Clone()      //nolint
-		insecureTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint
+		insecureTransport := http.DefaultTransport.(*http.Transport).Clone() //nolint
+		insecureTransport.TLSClientConfig = &tls.Config{
+			// turn of gosec as we are intentionally setting
+			// insecure.
+			//nolint:gosec
+			InsecureSkipVerify: true,
+		}
 		client = &http.Client{Transport: insecureTransport}
 	}
 
