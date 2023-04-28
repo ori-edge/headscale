@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ori-edge/headscale"
 	v1 "github.com/ori-edge/headscale/gen/go/headscale/v1"
 	"github.com/ori-edge/headscale/integration/hsic"
 	"github.com/ori-edge/headscale/integration/tsic"
@@ -17,53 +16,47 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var allowAllPolicy = headscale.ACLPolicy{
-	ACLs: []headscale.ACL{
-		{
-			Action:       "accept",
-			Sources:      []string{"*"},
-			Destinations: []string{"*:*"},
-		},
-	},
-}
-
 func TestPingAllByIP(t *testing.T) {
 	IntegrationSkip(t)
 	t.Parallel()
 
 	scenario, err := NewScenario()
 	if err != nil {
-		t.Errorf("failed to create scenario: %s", err)
+		t.Fatalf("failed to create scenario: %s", err)
 	}
+	t.Cleanup(func() {
+		err := scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
 
 	spec := map[string]int{
 		"user1": len(TailscaleVersions),
-		"user2": len(TailscaleVersions),
 	}
 
 	err = scenario.CreateHeadscaleEnv(
 		spec,
 		[]tsic.Option{},
 		hsic.WithTestName("pingallbyip"),
-		hsic.WithACLPolicy(&allowAllPolicy),
 	)
 	if err != nil {
-		t.Errorf("failed to create headscale environment: %s", err)
+		t.Fatalf("failed to create headscale environment: %s", err)
 	}
 
 	allClients, err := scenario.ListTailscaleClients()
 	if err != nil {
-		t.Errorf("failed to get clients: %s", err)
+		t.Fatalf("failed to get clients: %s", err)
 	}
 
 	allIps, err := scenario.ListTailscaleClientsIPs()
 	if err != nil {
-		t.Errorf("failed to get clients: %s", err)
+		t.Fatalf("failed to get clients: %s", err)
 	}
 
 	err = scenario.WaitForTailscaleSync()
 	if err != nil {
-		t.Errorf("failed wait for tailscale clients to be in sync: %s", err)
+		t.Fatalf("failed wait for tailscale clients to be in sync: %s", err)
 	}
 
 	allAddrs := lo.Map(allIps, func(x netip.Addr, index int) string {
@@ -72,11 +65,6 @@ func TestPingAllByIP(t *testing.T) {
 
 	success := pingAllHelper(t, allClients, allAddrs)
 	t.Logf("%d successful pings out of %d", success, len(allClients)*len(allIps))
-
-	err = scenario.Shutdown()
-	if err != nil {
-		t.Errorf("failed to tear down scenario: %s", err)
-	}
 }
 
 func TestAuthKeyLogoutAndRelogin(t *testing.T) {
@@ -87,17 +75,21 @@ func TestAuthKeyLogoutAndRelogin(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create scenario: %s", err)
 	}
+	t.Cleanup(func() {
+		err := scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
 
 	spec := map[string]int{
 		"user1": len(TailscaleVersions),
-		"user2": len(TailscaleVersions),
 	}
 
 	err = scenario.CreateHeadscaleEnv(
 		spec,
 		[]tsic.Option{},
 		hsic.WithTestName("authkeyrelogin"),
-		hsic.WithACLPolicy(&allowAllPolicy),
 	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
@@ -139,12 +131,16 @@ func TestAuthKeyLogoutAndRelogin(t *testing.T) {
 	}
 
 	for userName := range spec {
-		key, err := scenario.CreatePreAuthKey(userName, true, false)
+		key, err := scenario.CreatePreAuthKey(userName, true, false, nil)
 		if err != nil {
 			t.Errorf("failed to create pre-auth key for user %s: %s", userName, err)
 		}
 
-		err = scenario.RunTailscaleUp(userName, headscale.GetEndpoint(), key.GetKey())
+		for name := range scenario.users[userName].Clients {
+			scenario.users[userName].Keys[name] = key
+		}
+
+		err = scenario.RunTailscaleUp(userName, headscale.GetEndpoint())
 		if err != nil {
 			t.Errorf("failed to run tailscale up for user %s: %s", userName, err)
 		}
@@ -205,11 +201,6 @@ func TestAuthKeyLogoutAndRelogin(t *testing.T) {
 	}
 
 	t.Logf("all clients IPs are the same")
-
-	err = scenario.Shutdown()
-	if err != nil {
-		t.Errorf("failed to tear down scenario: %s", err)
-	}
 }
 
 func TestEphemeral(t *testing.T) {
@@ -220,24 +211,34 @@ func TestEphemeral(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create scenario: %s", err)
 	}
+	t.Cleanup(func() {
+		err := scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
 
 	spec := map[string]int{
 		"user1": len(TailscaleVersions),
-		"user2": len(TailscaleVersions),
 	}
 
 	headscale, err := scenario.Headscale(
 		hsic.WithTestName("ephemeral"),
-		hsic.WithACLPolicy(&allowAllPolicy),
 	)
 	if err != nil {
-		t.Errorf("failed to create headscale environment: %s", err)
+		t.Fatalf("failed to create headscale environment: %s", err)
 	}
 
 	for userName, clientCount := range spec {
 		err = scenario.CreateUser(userName)
 		if err != nil {
-			t.Errorf("failed to create user %s: %s", userName, err)
+			t.Fatalf("failed to create user %s: %s", userName, err)
+		}
+
+		// allow full connectivity within the same user for tests
+		err = scenario.CreateUserACLPolicy(userName, allowAllPolicy)
+		if err != nil {
+			t.Fatalf("failed to create user acl policy: %s", err)
 		}
 
 		err = scenario.CreateTailscaleNodesInUser(
@@ -246,33 +247,37 @@ func TestEphemeral(t *testing.T) {
 			clientCount,
 			[]tsic.Option{}...)
 		if err != nil {
-			t.Errorf("failed to create tailscale nodes in user %s: %s", userName, err)
+			t.Fatalf("failed to create tailscale nodes in user %s: %s", userName, err)
 		}
 
-		key, err := scenario.CreatePreAuthKey(userName, true, true)
+		key, err := scenario.CreatePreAuthKey(userName, true, true, nil)
 		if err != nil {
-			t.Errorf("failed to create pre-auth key for user %s: %s", userName, err)
+			t.Fatalf("failed to create pre-auth key for user %s: %s", userName, err)
 		}
 
-		err = scenario.RunTailscaleUp(userName, headscale.GetEndpoint(), key.GetKey())
+		for name := range scenario.users[userName].Clients {
+			scenario.users[userName].Keys[name] = key
+		}
+
+		err = scenario.RunTailscaleUp(userName, headscale.GetEndpoint())
 		if err != nil {
-			t.Errorf("failed to run tailscale up for user %s: %s", userName, err)
+			t.Fatalf("failed to run tailscale up for user %s: %s", userName, err)
 		}
 	}
 
 	err = scenario.WaitForTailscaleSync()
 	if err != nil {
-		t.Errorf("failed wait for tailscale clients to be in sync: %s", err)
+		t.Fatalf("failed wait for tailscale clients to be in sync: %s", err)
 	}
 
 	allClients, err := scenario.ListTailscaleClients()
 	if err != nil {
-		t.Errorf("failed to get clients: %s", err)
+		t.Fatalf("failed to get clients: %s", err)
 	}
 
 	allIps, err := scenario.ListTailscaleClientsIPs()
 	if err != nil {
-		t.Errorf("failed to get clients: %s", err)
+		t.Fatalf("failed to get clients: %s", err)
 	}
 
 	allAddrs := lo.Map(allIps, func(x netip.Addr, index int) string {
@@ -308,11 +313,6 @@ func TestEphemeral(t *testing.T) {
 			t.Errorf("expected no machines, got %d in user %s", len(machines), userName)
 		}
 	}
-
-	err = scenario.Shutdown()
-	if err != nil {
-		t.Errorf("failed to tear down scenario: %s", err)
-	}
 }
 
 func TestPingAllByHostname(t *testing.T) {
@@ -323,18 +323,22 @@ func TestPingAllByHostname(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create scenario: %s", err)
 	}
+	t.Cleanup(func() {
+		err := scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
 
 	spec := map[string]int{
 		// Omit 1.16.2 (-1) because it does not have the FQDN field
 		"user3": len(TailscaleVersions) - 1,
-		"user4": len(TailscaleVersions) - 1,
 	}
 
 	err = scenario.CreateHeadscaleEnv(
 		spec,
 		[]tsic.Option{},
 		hsic.WithTestName("pingallbyname"),
-		hsic.WithACLPolicy(&allowAllPolicy),
 	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
@@ -358,11 +362,6 @@ func TestPingAllByHostname(t *testing.T) {
 	success := pingAllHelper(t, allClients, allHostnames)
 
 	t.Logf("%d successful pings out of %d", success, len(allClients)*len(allClients))
-
-	err = scenario.Shutdown()
-	if err != nil {
-		t.Errorf("failed to tear down scenario: %s", err)
-	}
 }
 
 // If subtests are parallel, then they will start before setup is run.
@@ -390,6 +389,12 @@ func TestTaildrop(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create scenario: %s", err)
 	}
+	t.Cleanup(func() {
+		err := scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
 
 	spec := map[string]int{
 		// Omit 1.16.2 (-1) because it does not have the FQDN field
@@ -523,11 +528,6 @@ func TestTaildrop(t *testing.T) {
 			)
 		}
 	}
-
-	err = scenario.Shutdown()
-	if err != nil {
-		t.Errorf("failed to tear down scenario: %s", err)
-	}
 }
 
 func TestResolveMagicDNS(t *testing.T) {
@@ -538,18 +538,22 @@ func TestResolveMagicDNS(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create scenario: %s", err)
 	}
+	t.Cleanup(func() {
+		err := scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
 
 	spec := map[string]int{
 		// Omit 1.16.2 (-1) because it does not have the FQDN field
 		"magicdns1": len(TailscaleVersions) - 1,
-		"magicdns2": len(TailscaleVersions) - 1,
 	}
 
 	err = scenario.CreateHeadscaleEnv(
 		spec,
 		[]tsic.Option{},
 		hsic.WithTestName("magicdns"),
-		hsic.WithACLPolicy(&allowAllPolicy),
 	)
 	if err != nil {
 		t.Errorf("failed to create headscale environment: %s", err)
@@ -611,11 +615,6 @@ func TestResolveMagicDNS(t *testing.T) {
 			}
 		}
 	}
-
-	err = scenario.Shutdown()
-	if err != nil {
-		t.Errorf("failed to tear down scenario: %s", err)
-	}
 }
 
 func TestExpireNode(t *testing.T) {
@@ -626,6 +625,12 @@ func TestExpireNode(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create scenario: %s", err)
 	}
+	t.Cleanup(func() {
+		err := scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
 
 	spec := map[string]int{
 		"user1": len(TailscaleVersions),
@@ -711,10 +716,5 @@ func TestExpireNode(t *testing.T) {
 			// Assert that we have the original count - self - expired node
 			assert.Len(t, status.Peers(), len(TailscaleVersions)-2)
 		}
-	}
-
-	err = scenario.Shutdown()
-	if err != nil {
-		t.Errorf("failed to tear down scenario: %s", err)
 	}
 }

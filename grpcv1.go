@@ -314,14 +314,31 @@ func (api headscaleV1APIServer) ListMachines(
 	request *v1.ListMachinesRequest,
 ) (*v1.ListMachinesResponse, error) {
 	if request.GetUser() != "" {
-		machines, err := api.h.ListMachinesByUser(request.GetUser())
+		user, err := api.h.GetUser(request.GetUser())
+		if err != nil {
+			return nil, err
+		}
+
+		machines, err := api.h.ListMachinesByUserID(user.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		policy, err := api.h.getACLPolicy(user.ID)
 		if err != nil {
 			return nil, err
 		}
 
 		response := make([]*v1.Machine, len(machines))
 		for index, machine := range machines {
-			response[index] = machine.toProto()
+			m := machine.toProto()
+			validTags, invalidTags := getTags(
+				&policy,
+				machine,
+			)
+			m.InvalidTags = invalidTags
+			m.ValidTags = validTags
+			response[index] = m
 		}
 
 		return &v1.ListMachinesResponse{Machines: response}, nil
@@ -334,15 +351,7 @@ func (api headscaleV1APIServer) ListMachines(
 
 	response := make([]*v1.Machine, len(machines))
 	for index, machine := range machines {
-		m := machine.toProto()
-		validTags, invalidTags := getTags(
-			api.h.aclPolicy,
-			machine,
-			api.h.cfg.OIDC.StripEmaildomain,
-		)
-		m.InvalidTags = invalidTags
-		m.ValidTags = validTags
-		response[index] = m
+		response[index] = machine.toProto()
 	}
 
 	return &v1.ListMachinesResponse{Machines: response}, nil
@@ -548,6 +557,28 @@ func (api headscaleV1APIServer) DebugCreateMachine(
 	)
 
 	return &v1.DebugCreateMachineResponse{Machine: newMachine.toProto()}, nil
+}
+
+func (api headscaleV1APIServer) CreateACLPolicy(
+	_ context.Context,
+	request *v1.CreateACLPolicyRequest,
+) (*v1.CreateACLPolicyResponse, error) {
+	user, err := api.h.GetUser(request.GetUser())
+	if err != nil {
+		return nil, err
+	}
+
+	aclPolicy, err := aclFromProto(request.GetAclPolicy())
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = api.h.CreateUserACLPolicy(user.ID, aclPolicy)
+	if err != nil {
+		return nil, err
+	}
+
+	return &v1.CreateACLPolicyResponse{}, nil
 }
 
 func (api headscaleV1APIServer) mustEmbedUnimplementedHeadscaleServiceServer() {}

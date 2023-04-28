@@ -159,8 +159,12 @@ func (h *Headscale) ListMachinesByUser(name string) ([]Machine, error) {
 		return nil, err
 	}
 
-	machines := []Machine{}
-	if err := h.db.Preload("AuthKey").Preload("AuthKey.User").Preload("User").Where(&Machine{UserID: user.ID}).Find(&machines).Error; err != nil {
+	return h.ListMachinesByUserID(user.ID)
+}
+
+func (h *Headscale) ListMachinesByUserID(userID uint) ([]Machine, error) {
+	var machines []Machine
+	if err := h.db.Preload("AuthKey").Preload("AuthKey.User").Preload("User").Where(&Machine{UserID: userID}).Find(&machines).Error; err != nil {
 		return nil, err
 	}
 

@@ -25,7 +25,7 @@ func TestDERPServerScenario(t *testing.T) {
 
 	baseScenario, err := NewScenario()
 	if err != nil {
-		t.Errorf("failed to create scenario: %s", err)
+		t.Fatalf("failed to create scenario: %s", err)
 	}
 
 	scenario := EmbeddedDERPServerScenario{
@@ -55,27 +55,27 @@ func TestDERPServerScenario(t *testing.T) {
 	)
 
 	if err != nil {
-		t.Errorf("failed to create headscale environment: %s", err)
+		t.Fatalf("failed to create headscale environment: %s", err)
 	}
 
 	allClients, err := scenario.ListTailscaleClients()
 	if err != nil {
-		t.Errorf("failed to get clients: %s", err)
+		t.Fatalf("failed to get clients: %s", err)
 	}
 
 	allIps, err := scenario.ListTailscaleClientsIPs()
 	if err != nil {
-		t.Errorf("failed to get clients: %s", err)
+		t.Fatalf("failed to get clients: %s", err)
 	}
 
 	err = scenario.WaitForTailscaleSync()
 	if err != nil {
-		t.Errorf("failed wait for tailscale clients to be in sync: %s", err)
+		t.Fatalf("failed wait for tailscale clients to be in sync: %s", err)
 	}
 
 	allHostnames, err := scenario.ListTailscaleClientsFQDNs()
 	if err != nil {
-		t.Errorf("failed to get FQDNs: %s", err)
+		t.Fatalf("failed to get FQDNs: %s", err)
 	}
 
 	success := pingDerpAllHelper(t, allClients, allHostnames)
@@ -125,6 +125,12 @@ func (s *EmbeddedDERPServerScenario) CreateHeadscaleEnv(
 			return err
 		}
 
+		// allow full connectivity within the same user for tests
+		err = s.CreateUserACLPolicy(userName, allowAllPolicy)
+		if err != nil {
+			return err
+		}
+
 		err = s.CreateTailscaleIsolatedNodesInUser(
 			hash,
 			userName,
@@ -135,12 +141,16 @@ func (s *EmbeddedDERPServerScenario) CreateHeadscaleEnv(
 			return err
 		}
 
-		key, err := s.CreatePreAuthKey(userName, true, false)
+		key, err := s.CreatePreAuthKey(userName, true, false, nil)
 		if err != nil {
 			return err
 		}
 
-		err = s.RunTailscaleUp(userName, headscaleURL.String(), key.GetKey())
+		for name := range s.users[userName].Clients {
+			s.users[userName].Keys[name] = key
+		}
+
+		err = s.RunTailscaleUp(userName, headscaleURL.String())
 		if err != nil {
 			return err
 		}

@@ -10,43 +10,13 @@ import (
 	"github.com/ori-edge/headscale/integration/hsic"
 	"github.com/ori-edge/headscale/integration/tsic"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func aclScenario(
-	t *testing.T,
-	policy *headscale.ACLPolicy,
-	clientsPerUser int,
-) *Scenario {
-	t.Helper()
-	scenario, err := NewScenario()
-	assert.NoError(t, err)
+const aclTestUserName = "acltest"
 
-	spec := map[string]int{
-		"user1": clientsPerUser,
-		"user2": clientsPerUser,
-	}
-
-	err = scenario.CreateHeadscaleEnv(spec,
-		[]tsic.Option{
-			tsic.WithDockerEntrypoint([]string{
-				"/bin/bash",
-				"-c",
-				"/bin/sleep 3 ; update-ca-certificates ; python3 -m http.server --bind :: 80 & tailscaled --tun=tsdev",
-			}),
-			tsic.WithDockerWorkdir("/"),
-		},
-		hsic.WithACLPolicy(policy),
-		hsic.WithTestName("acl"),
-	)
-	assert.NoError(t, err)
-
-	err = scenario.WaitForTailscaleSync()
-	assert.NoError(t, err)
-
-	_, err = scenario.ListTailscaleClientsFQDNs()
-	assert.NoError(t, err)
-
-	return scenario
+type ACLScenario struct {
+	*Scenario
 }
 
 // This tests a different ACL mechanism, if a host _cannot_ connect
@@ -59,19 +29,19 @@ func TestACLHostsInNetMapTable(t *testing.T) {
 
 	// NOTE: All want cases currently checks the
 	// total count of expected peers, this would
-	// typically be the client count of the users
+	// typically be the client count of the tags
 	// they can access minus one (them self).
 	tests := map[string]struct {
-		users  map[string]int
+		tags   map[string]int
 		policy headscale.ACLPolicy
 		want   map[string]int
 	}{
 		// Test that when we have no ACL, each client netmap has
 		// the amount of peers of the total amount of clients
 		"base-acls": {
-			users: map[string]int{
-				"user1": 2,
-				"user2": 2,
+			tags: map[string]int{
+				"tag:user1": 2,
+				"tag:user2": 2,
 			},
 			policy: headscale.ACLPolicy{
 				ACLs: []headscale.ACL{
@@ -82,140 +52,138 @@ func TestACLHostsInNetMapTable(t *testing.T) {
 					},
 				},
 			}, want: map[string]int{
-				"user1": 3, // ns1 + ns2
-				"user2": 3, // ns2 + ns1
+				"tag:user1": 3, // ns1 + ns2
+				"tag:user2": 3, // ns2 + ns1
 			},
 		},
-		// Test that when we have two users, which cannot see
+		// Test that when we have two tags, which cannot see
 		// eachother, each node has only the number of pairs from
 		// their own user.
-		"two-isolated-users": {
-			users: map[string]int{
-				"user1": 2,
-				"user2": 2,
+		"two-isolated-tags": {
+			tags: map[string]int{
+				"tag:user1": 2,
+				"tag:user2": 2,
 			},
 			policy: headscale.ACLPolicy{
 				ACLs: []headscale.ACL{
 					{
 						Action:       "accept",
-						Sources:      []string{"user1"},
-						Destinations: []string{"user1:*"},
+						Sources:      []string{"tag:user1"},
+						Destinations: []string{"tag:user1:*"},
 					},
 					{
 						Action:       "accept",
-						Sources:      []string{"user2"},
-						Destinations: []string{"user2:*"},
+						Sources:      []string{"tag:user2"},
+						Destinations: []string{"tag:user2:*"},
 					},
 				},
+				TagOwners: map[string][]string{
+					"tag:user1": {aclTestUserName},
+					"tag:user2": {aclTestUserName},
+				},
 			}, want: map[string]int{
-				"user1": 1,
-				"user2": 1,
+				"tag:user1": 1,
+				"tag:user2": 1,
 			},
 		},
-		// Test that when we have two users, with ACLs and they
+		// Test that when we have two tags, with ACLs and they
 		// are restricted to a single port, nodes are still present
 		// in the netmap.
 		"two-restricted-present-in-netmap": {
-			users: map[string]int{
-				"user1": 2,
-				"user2": 2,
+			tags: map[string]int{
+				"tag:user1": 2,
+				"tag:user2": 2,
 			},
 			policy: headscale.ACLPolicy{
 				ACLs: []headscale.ACL{
 					{
 						Action:       "accept",
-						Sources:      []string{"user1"},
-						Destinations: []string{"user1:22"},
+						Sources:      []string{"tag:user1"},
+						Destinations: []string{"tag:user1:22"},
 					},
 					{
 						Action:       "accept",
-						Sources:      []string{"user2"},
-						Destinations: []string{"user2:22"},
+						Sources:      []string{"tag:user2"},
+						Destinations: []string{"tag:user2:22"},
 					},
 					{
 						Action:       "accept",
-						Sources:      []string{"user1"},
-						Destinations: []string{"user2:22"},
+						Sources:      []string{"tag:user1"},
+						Destinations: []string{"tag:user2:22"},
 					},
 					{
 						Action:       "accept",
-						Sources:      []string{"user2"},
-						Destinations: []string{"user1:22"},
+						Sources:      []string{"tag:user2"},
+						Destinations: []string{"tag:user1:22"},
 					},
 				},
+				TagOwners: map[string][]string{
+					"tag:user1": {aclTestUserName},
+					"tag:user2": {aclTestUserName},
+				},
 			}, want: map[string]int{
-				"user1": 3,
-				"user2": 3,
+				"tag:user1": 3,
+				"tag:user2": 3,
 			},
 		},
-		// Test that when we have two users, that are isolated,
+		// Test that when we have two tags, that are isolated,
 		// but one can see the others, we have the appropriate number
 		// of peers. This will still result in all the peers as we
 		// need them present on the other side for the "return path".
 		"two-ns-one-isolated": {
-			users: map[string]int{
-				"user1": 2,
-				"user2": 2,
+			tags: map[string]int{
+				"tag:user1": 2,
+				"tag:user2": 2,
 			},
 			policy: headscale.ACLPolicy{
 				ACLs: []headscale.ACL{
 					{
 						Action:       "accept",
-						Sources:      []string{"user1"},
-						Destinations: []string{"user1:*"},
+						Sources:      []string{"tag:user1"},
+						Destinations: []string{"tag:user1:*"},
 					},
 					{
 						Action:       "accept",
-						Sources:      []string{"user2"},
-						Destinations: []string{"user2:*"},
+						Sources:      []string{"tag:user2"},
+						Destinations: []string{"tag:user2:*"},
 					},
 					{
 						Action:       "accept",
-						Sources:      []string{"user1"},
-						Destinations: []string{"user2:*"},
+						Sources:      []string{"tag:user1"},
+						Destinations: []string{"tag:user2:*"},
 					},
 				},
+				TagOwners: map[string][]string{
+					"tag:user1": {aclTestUserName},
+					"tag:user2": {aclTestUserName},
+				},
 			}, want: map[string]int{
-				"user1": 3, // ns1 + ns2
-				"user2": 3, // ns1 + ns2 (return path)
+				"tag:user1": 3, // ns1 + ns2
+				"tag:user2": 3, // ns1 + ns2 (return path)
 			},
 		},
 	}
 
 	for name, testCase := range tests {
 		t.Run(name, func(t *testing.T) {
-			scenario, err := NewScenario()
-			assert.NoError(t, err)
+			var tagList [][]string
+			for tag, count := range testCase.tags {
+				for i := 0; i < count; i++ {
+					tagList = append(tagList, []string{tag})
+				}
+			}
 
-			spec := testCase.users
+			scenario := aclScenario(t, testCase.policy, tagList)
 
-			err = scenario.CreateHeadscaleEnv(spec,
-				[]tsic.Option{},
-				hsic.WithACLPolicy(&testCase.policy),
-				// hsic.WithTestName(fmt.Sprintf("aclinnetmap%s", name)),
-			)
-			assert.NoError(t, err)
-
-			allClients, err := scenario.ListTailscaleClients()
-			assert.NoError(t, err)
-
-			err = scenario.WaitForTailscaleSync()
-			assert.NoError(t, err)
-
-			// allHostnames, err := scenario.ListTailscaleClientsFQDNs()
-			// assert.NoError(t, err)
-
-			for _, client := range allClients {
+			for name, client := range scenario.users[aclTestUserName].Clients {
 				status, err := client.Status()
 				assert.NoError(t, err)
 
-				user := status.User[status.Self.UserID].LoginName
-
-				assert.Equal(t, (testCase.want[user]), len(status.Peer))
+				key, exists := scenario.users[aclTestUserName].Keys[name]
+				if assert.True(t, exists) && assert.Len(t, key.AclTags, 1) {
+					assert.Equal(t, testCase.want[key.AclTags[0]], len(status.Peer))
+				}
 			}
-
-			err = scenario.Shutdown()
-			assert.NoError(t, err)
 		})
 	}
 }
@@ -229,23 +197,29 @@ func TestACLAllowUser80Dst(t *testing.T) {
 	IntegrationSkip(t)
 
 	scenario := aclScenario(t,
-		&headscale.ACLPolicy{
+		headscale.ACLPolicy{
 			ACLs: []headscale.ACL{
 				{
 					Action:       "accept",
-					Sources:      []string{"user1"},
-					Destinations: []string{"user2:80"},
+					Sources:      []string{"tag:user1"},
+					Destinations: []string{"tag:user2:80"},
 				},
 			},
+			TagOwners: map[string][]string{
+				"tag:user1": {"test"},
+				"tag:user2": {"test"},
+			},
 		},
-		1,
+		[][]string{{"tag:user1"}, {"tag:user2"}},
 	)
 
-	user1Clients, err := scenario.ListTailscaleClients("user1")
+	user1Clients, err := scenario.ListTailscaleClientsWithTag("tag:user1")
 	assert.NoError(t, err)
+	assert.Len(t, user1Clients, 1)
 
-	user2Clients, err := scenario.ListTailscaleClients("user2")
+	user2Clients, err := scenario.ListTailscaleClientsWithTag("tag:user2")
 	assert.NoError(t, err)
+	assert.Len(t, user2Clients, 1)
 
 	// Test that user1 can visit all user2
 	for _, client := range user1Clients {
@@ -257,8 +231,8 @@ func TestACLAllowUser80Dst(t *testing.T) {
 			t.Logf("url from %s to %s", client.Hostname(), url)
 
 			result, err := client.Curl(url)
-			assert.Len(t, result, 13)
 			assert.NoError(t, err)
+			assert.Len(t, result, 13)
 		}
 	}
 
@@ -272,22 +246,19 @@ func TestACLAllowUser80Dst(t *testing.T) {
 			t.Logf("url from %s to %s", client.Hostname(), url)
 
 			result, err := client.Curl(url)
-			assert.Empty(t, result)
 			assert.Error(t, err)
+			assert.Empty(t, result)
 		}
 	}
-
-	err = scenario.Shutdown()
-	assert.NoError(t, err)
 }
 
 func TestACLDenyAllPort80(t *testing.T) {
 	IntegrationSkip(t)
 
 	scenario := aclScenario(t,
-		&headscale.ACLPolicy{
+		headscale.ACLPolicy{
 			Groups: map[string][]string{
-				"group:integration-acl-test": {"user1", "user2"},
+				"group:integration-acl-test": {"tag:user1", "tag:user2"},
 			},
 			ACLs: []headscale.ACL{
 				{
@@ -296,8 +267,12 @@ func TestACLDenyAllPort80(t *testing.T) {
 					Destinations: []string{"*:22"},
 				},
 			},
+			TagOwners: map[string][]string{
+				"tag:user1": {"test"},
+				"tag:user2": {"test"},
+			},
 		},
-		4,
+		[][]string{{"tag:user1"}, {"tag:user2"}, {}},
 	)
 
 	allClients, err := scenario.ListTailscaleClients()
@@ -322,9 +297,6 @@ func TestACLDenyAllPort80(t *testing.T) {
 			assert.Error(t, err)
 		}
 	}
-
-	err = scenario.Shutdown()
-	assert.NoError(t, err)
 }
 
 // Test to confirm that we can use user:* from one user.
@@ -334,22 +306,26 @@ func TestACLAllowUserDst(t *testing.T) {
 	IntegrationSkip(t)
 
 	scenario := aclScenario(t,
-		&headscale.ACLPolicy{
+		headscale.ACLPolicy{
 			ACLs: []headscale.ACL{
 				{
 					Action:       "accept",
-					Sources:      []string{"user1"},
-					Destinations: []string{"user2:*"},
+					Sources:      []string{"tag:user1"},
+					Destinations: []string{"tag:user2:*"},
 				},
 			},
+			TagOwners: map[string][]string{
+				"tag:user1": {"test"},
+				"tag:user2": {"test"},
+			},
 		},
-		2,
+		[][]string{{"tag:user1"}, {"tag:user2"}},
 	)
 
-	user1Clients, err := scenario.ListTailscaleClients("user1")
+	user1Clients, err := scenario.ListTailscaleClientsWithTag("user1")
 	assert.NoError(t, err)
 
-	user2Clients, err := scenario.ListTailscaleClients("user2")
+	user2Clients, err := scenario.ListTailscaleClientsWithTag("user2")
 	assert.NoError(t, err)
 
 	// Test that user1 can visit all user2
@@ -381,9 +357,6 @@ func TestACLAllowUserDst(t *testing.T) {
 			assert.Error(t, err)
 		}
 	}
-
-	err = scenario.Shutdown()
-	assert.NoError(t, err)
 }
 
 // Test to confirm that we can use *:* from one user
@@ -392,22 +365,26 @@ func TestACLAllowStarDst(t *testing.T) {
 	IntegrationSkip(t)
 
 	scenario := aclScenario(t,
-		&headscale.ACLPolicy{
+		headscale.ACLPolicy{
 			ACLs: []headscale.ACL{
 				{
 					Action:       "accept",
-					Sources:      []string{"user1"},
+					Sources:      []string{"tag:user1"},
 					Destinations: []string{"*:*"},
 				},
 			},
+			TagOwners: map[string][]string{
+				"tag:user1": {"test"},
+				"tag:user2": {"test"},
+			},
 		},
-		2,
+		[][]string{{"tag:user1"}, {"tag:user2"}},
 	)
 
-	user1Clients, err := scenario.ListTailscaleClients("user1")
+	user1Clients, err := scenario.ListTailscaleClientsWithTag("user1")
 	assert.NoError(t, err)
 
-	user2Clients, err := scenario.ListTailscaleClients("user2")
+	user2Clients, err := scenario.ListTailscaleClientsWithTag("user2")
 	assert.NoError(t, err)
 
 	// Test that user1 can visit all user2
@@ -439,9 +416,6 @@ func TestACLAllowStarDst(t *testing.T) {
 			assert.Error(t, err)
 		}
 	}
-
-	err = scenario.Shutdown()
-	assert.NoError(t, err)
 }
 
 // TestACLNamedHostsCanReachBySubnet is the same as
@@ -451,7 +425,7 @@ func TestACLNamedHostsCanReachBySubnet(t *testing.T) {
 	IntegrationSkip(t)
 
 	scenario := aclScenario(t,
-		&headscale.ACLPolicy{
+		headscale.ACLPolicy{
 			Hosts: headscale.Hosts{
 				"all": netip.MustParsePrefix("100.64.0.0/24"),
 			},
@@ -463,14 +437,18 @@ func TestACLNamedHostsCanReachBySubnet(t *testing.T) {
 					Destinations: []string{"all:*"},
 				},
 			},
+			TagOwners: map[string][]string{
+				"tag:user1": {"test"},
+				"tag:user2": {"test"},
+			},
 		},
-		3,
+		[][]string{{"tag:user1"}, {"tag:user2"}, {}},
 	)
 
-	user1Clients, err := scenario.ListTailscaleClients("user1")
+	user1Clients, err := scenario.ListTailscaleClientsWithTag("user1")
 	assert.NoError(t, err)
 
-	user2Clients, err := scenario.ListTailscaleClients("user2")
+	user2Clients, err := scenario.ListTailscaleClientsWithTag("user2")
 	assert.NoError(t, err)
 
 	// Test that user1 can visit all user2
@@ -502,9 +480,6 @@ func TestACLNamedHostsCanReachBySubnet(t *testing.T) {
 			assert.NoError(t, err)
 		}
 	}
-
-	err = scenario.Shutdown()
-	assert.NoError(t, err)
 }
 
 // This test aims to cover cases where individual hosts are allowed and denied
@@ -573,6 +548,10 @@ func TestACLNamedHostsCanReach(t *testing.T) {
 						Destinations: []string{"test2:*"},
 					},
 				},
+				TagOwners: map[string][]string{
+					"tag:user1": {"test"},
+					"tag:user2": {"test"},
+				},
 			},
 		},
 		"ipv6": {
@@ -596,6 +575,10 @@ func TestACLNamedHostsCanReach(t *testing.T) {
 						Destinations: []string{"test2:*"},
 					},
 				},
+				TagOwners: map[string][]string{
+					"tag:user1": {"test"},
+					"tag:user2": {"test"},
+				},
 			},
 		},
 	}
@@ -603,11 +586,11 @@ func TestACLNamedHostsCanReach(t *testing.T) {
 	for name, testCase := range tests {
 		t.Run(name, func(t *testing.T) {
 			scenario := aclScenario(t,
-				&testCase.policy,
-				2,
+				testCase.policy,
+				[][]string{{"tag:user1"}, {"tag:user2"}, {}},
 			)
 
-			// Since user/users dont matter here, we basically expect that some clients
+			// Since user/tags dont matter here, we basically expect that some clients
 			// will be assigned these ips and that we can pick them up for our own use.
 			test1ip4 := netip.MustParseAddr("100.64.0.1")
 			test1ip6 := netip.MustParseAddr("fd7a:115c:a1e0::1")
@@ -782,9 +765,6 @@ func TestACLNamedHostsCanReach(t *testing.T) {
 			result, err = test2.Curl(test1fqdnURL)
 			assert.Empty(t, result)
 			assert.Error(t, err)
-
-			err = scenario.Shutdown()
-			assert.NoError(t, err)
 		})
 	}
 }
@@ -861,7 +841,11 @@ func TestACLDevice1CanAccessDevice2(t *testing.T) {
 
 	for name, testCase := range tests {
 		t.Run(name, func(t *testing.T) {
-			scenario := aclScenario(t, &testCase.policy, 1)
+			scenario := aclScenario(
+				t,
+				testCase.policy,
+				[][]string{{"tag:user1"}, {"tag:user2"}},
+			)
 
 			test1ip := netip.MustParseAddr("100.64.0.1")
 			test1ip6 := netip.MustParseAddr("fd7a:115c:a1e0::1")
@@ -932,9 +916,95 @@ func TestACLDevice1CanAccessDevice2(t *testing.T) {
 			result, err = test2.Curl(test1fqdnURL)
 			assert.Empty(t, result)
 			assert.Error(t, err)
-
-			err = scenario.Shutdown()
-			assert.NoError(t, err)
 		})
 	}
+}
+
+func (s *ACLScenario) CreateHeadscaleACLEnv(
+	tagsList [][]string,
+	policy headscale.ACLPolicy,
+	tsOpts []tsic.Option,
+	opts ...hsic.Option,
+) error {
+	//nolint:varnamelen
+	hs, err := s.Headscale(opts...)
+	if err != nil {
+		return err
+	}
+
+	err = s.CreateUser(aclTestUserName)
+	if err != nil {
+		return err
+	}
+	err = s.CreateUserACLPolicy(aclTestUserName, policy)
+	if err != nil {
+		return err
+	}
+
+	for _, tags := range tagsList {
+		err = s.CreateTailscaleNodesInUser(aclTestUserName, "all", 1, tsOpts...)
+		if err != nil {
+			return err
+		}
+
+		key, err := s.CreatePreAuthKey(aclTestUserName, true, false, tags)
+		if err != nil {
+			return err
+		}
+
+		for name := range s.users[aclTestUserName].Clients {
+			if _, exists := s.users[aclTestUserName].Keys[name]; !exists {
+				s.users[aclTestUserName].Keys[name] = key
+			}
+		}
+
+		err = s.RunTailscaleUp(aclTestUserName, hs.GetEndpoint())
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func aclScenario(
+	t *testing.T,
+	policy headscale.ACLPolicy,
+	tags [][]string,
+) *ACLScenario {
+	t.Helper()
+
+	s, err := NewScenario()
+	require.NoError(t, err)
+
+	scenario := &ACLScenario{s}
+
+	t.Cleanup(func() {
+		t.Log("tearing down scenario")
+		err := scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
+
+	err = scenario.CreateHeadscaleACLEnv(tags, policy,
+		[]tsic.Option{
+			tsic.WithDockerEntrypoint([]string{
+				"/bin/bash",
+				"-c",
+				"/bin/sleep 3 ; update-ca-certificates ; python3 -m http.server --bind :: 80 & tailscaled --tun=tsdev",
+			}),
+			tsic.WithDockerWorkdir("/"),
+		},
+		hsic.WithTestName("acl"),
+	)
+	require.NoError(t, err)
+
+	err = scenario.WaitForTailscaleSync()
+	require.NoError(t, err)
+
+	_, err = scenario.ListTailscaleClientsFQDNs()
+	require.NoError(t, err)
+
+	return scenario
 }

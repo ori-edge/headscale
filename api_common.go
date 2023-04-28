@@ -50,6 +50,17 @@ func (h *Headscale) generateMapResponse(
 		return nil, err
 	}
 
+	aclRules, err := h.getACLRules(*machine)
+	if err != nil {
+		log.Error().
+			Caller().
+			Str("func", "generateMapResponse").
+			Err(err).
+			Msg("Failed to get ACL rules")
+
+		return nil, err
+	}
+
 	dnsConfig := getMapResponseDNSConfig(
 		h.cfg.DNSConfig,
 		h.cfg.BaseDomain,
@@ -88,12 +99,9 @@ func (h *Headscale) generateMapResponse(
 		CollectServices: "false",
 
 		// TODO: Only send if updated
-		PacketFilter: h.aclRules,
+		PacketFilter: aclRules,
 
 		UserProfiles: profiles,
-
-		// TODO: Only send if updated
-		SSHPolicy: h.sshPolicy,
 
 		ControlTime: &now,
 

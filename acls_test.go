@@ -7,25 +7,8 @@ import (
 	"testing"
 
 	"gopkg.in/check.v1"
-	"tailscale.com/envknob"
 	"tailscale.com/tailcfg"
 )
-
-func (s *Suite) TestWrongPath(c *check.C) {
-	err := app.LoadACLPolicy("asdfg")
-	c.Assert(err, check.NotNil)
-}
-
-func (s *Suite) TestBrokenHuJson(c *check.C) {
-	err := app.LoadACLPolicy("./tests/acls/broken.hujson")
-	c.Assert(err, check.NotNil)
-}
-
-func (s *Suite) TestInvalidPolicyHuson(c *check.C) {
-	err := app.LoadACLPolicy("./tests/acls/invalid.hujson")
-	c.Assert(err, check.NotNil)
-	c.Assert(err, check.Equals, errEmptyPolicy)
-}
 
 func (s *Suite) TestParseHosts(c *check.C) {
 	var hosts Hosts
@@ -45,23 +28,27 @@ func (s *Suite) TestParseInvalidCIDR(c *check.C) {
 	c.Assert(err, check.NotNil)
 }
 
-func (s *Suite) TestRuleInvalidGeneration(c *check.C) {
-	err := app.LoadACLPolicy("./tests/acls/acl_policy_invalid.hujson")
-	c.Assert(err, check.NotNil)
-}
-
 func (s *Suite) TestBasicRule(c *check.C) {
-	err := app.LoadACLPolicy("./tests/acls/acl_policy_basic_1.hujson")
-	c.Assert(err, check.IsNil)
-
-	rules, err := generateACLRules([]Machine{}, *app.aclPolicy, false)
+	rules, err := generateACLRules(nil, ACLPolicy{
+		Hosts: map[string]netip.Prefix{
+			"host-1":   netip.MustParsePrefix("100.100.101.100/24"),
+			"subnet-1": netip.MustParsePrefix("100.100.100.100/24"),
+		},
+		ACLs: []ACL{
+			{
+				Action:       "accept",
+				Sources:      []string{"subnet-1", "192.168.1.0/24"},
+				Destinations: []string{"*:22,3389", "host-1:*"},
+			},
+		},
+	})
 	c.Assert(err, check.IsNil)
 	c.Assert(rules, check.NotNil)
 }
 
 // TODO(kradalby): Make tests values safe, independent and descriptive.
 func (s *Suite) TestInvalidAction(c *check.C) {
-	app.aclPolicy = &ACLPolicy{
+	_, err := generateACLRules(nil, ACLPolicy{
 		ACLs: []ACL{
 			{
 				Action:       "invalidAction",
@@ -69,92 +56,20 @@ func (s *Suite) TestInvalidAction(c *check.C) {
 				Destinations: []string{"*:*"},
 			},
 		},
-	}
-	err := app.UpdateACLRules()
+	})
 	c.Assert(errors.Is(err, errInvalidAction), check.Equals, true)
-}
-
-func (s *Suite) TestSshRules(c *check.C) {
-	envknob.Setenv("HEADSCALE_EXPERIMENTAL_FEATURE_SSH", "1")
-
-	user, err := app.CreateUser("user1")
-	c.Assert(err, check.IsNil)
-
-	pak, err := app.CreatePreAuthKey(user.Name, false, false, nil, nil)
-	c.Assert(err, check.IsNil)
-
-	_, err = app.GetMachine("user1", "testmachine")
-	c.Assert(err, check.NotNil)
-	hostInfo := tailcfg.Hostinfo{
-		OS:          "centos",
-		Hostname:    "testmachine",
-		RequestTags: []string{"tag:test"},
-	}
-
-	machine := Machine{
-		ID:             0,
-		MachineKey:     "foo",
-		NodeKey:        "bar",
-		DiscoKey:       "faa",
-		Hostname:       "testmachine",
-		IPAddresses:    MachineAddresses{netip.MustParseAddr("100.64.0.1")},
-		UserID:         user.ID,
-		RegisterMethod: RegisterMethodAuthKey,
-		AuthKeyID:      uint(pak.ID),
-		HostInfo:       HostInfo(hostInfo),
-	}
-	app.db.Save(&machine)
-
-	app.aclPolicy = &ACLPolicy{
-		Groups: Groups{
-			"group:test": []string{"user1"},
-		},
-		Hosts: Hosts{
-			"client": netip.PrefixFrom(netip.MustParseAddr("100.64.99.42"), 32),
-		},
-		ACLs: []ACL{
-			{
-				Action:       "accept",
-				Sources:      []string{"*"},
-				Destinations: []string{"*:*"},
-			},
-		},
-		SSHs: []SSH{
-			{
-				Action:       "accept",
-				Sources:      []string{"group:test"},
-				Destinations: []string{"client"},
-				Users:        []string{"autogroup:nonroot"},
-			},
-			{
-				Action:       "accept",
-				Sources:      []string{"*"},
-				Destinations: []string{"client"},
-				Users:        []string{"autogroup:nonroot"},
-			},
-		},
-	}
-
-	err = app.UpdateACLRules()
-
-	c.Assert(err, check.IsNil)
-	c.Assert(app.sshPolicy, check.NotNil)
-	c.Assert(app.sshPolicy.Rules, check.HasLen, 2)
-	c.Assert(app.sshPolicy.Rules[0].SSHUsers, check.HasLen, 1)
-	c.Assert(app.sshPolicy.Rules[0].Principals, check.HasLen, 1)
-	c.Assert(app.sshPolicy.Rules[0].Principals[0].NodeIP, check.Matches, "100.64.0.1")
-
-	c.Assert(app.sshPolicy.Rules[1].SSHUsers, check.HasLen, 1)
-	c.Assert(app.sshPolicy.Rules[1].Principals, check.HasLen, 1)
-	c.Assert(app.sshPolicy.Rules[1].Principals[0].NodeIP, check.Matches, "*")
 }
 
 func (s *Suite) TestInvalidGroupInGroup(c *check.C) {
 	// this ACL is wrong because the group in Sources sections doesn't exist
-	app.aclPolicy = &ACLPolicy{
-		Groups: Groups{
-			"group:test":  []string{"foo"},
-			"group:error": []string{"foo", "group:test"},
+	_, err := generateACLRules(nil, ACLPolicy{
+		Groups: map[string][]string{
+			"group:test":  {"foo"},
+			"group:error": {"foo", "group:test"},
+		},
+		Hosts: map[string]netip.Prefix{
+			"host-1":   netip.MustParsePrefix("100.100.101.100/24"),
+			"subnet-1": netip.MustParsePrefix("100.100.100.100/24"),
 		},
 		ACLs: []ACL{
 			{
@@ -163,14 +78,13 @@ func (s *Suite) TestInvalidGroupInGroup(c *check.C) {
 				Destinations: []string{"*:*"},
 			},
 		},
-	}
-	err := app.UpdateACLRules()
+	})
 	c.Assert(errors.Is(err, errInvalidGroup), check.Equals, true)
 }
 
 func (s *Suite) TestInvalidTagOwners(c *check.C) {
 	// this ACL is wrong because no tagOwners own the requested tag for the server
-	app.aclPolicy = &ACLPolicy{
+	_, err := generateACLRules(nil, ACLPolicy{
 		ACLs: []ACL{
 			{
 				Action:       "accept",
@@ -178,8 +92,7 @@ func (s *Suite) TestInvalidTagOwners(c *check.C) {
 				Destinations: []string{"*:*"},
 			},
 		},
-	}
-	err := app.UpdateACLRules()
+	})
 	c.Assert(errors.Is(err, errInvalidTag), check.Equals, true)
 }
 
@@ -215,7 +128,7 @@ func (s *Suite) TestValidExpandTagOwnersInSources(c *check.C) {
 	}
 	app.db.Save(&machine)
 
-	app.aclPolicy = &ACLPolicy{
+	_, err = app.CreateUserACLPolicy(user.ID, ACLPolicy{
 		Groups:    Groups{"group:test": []string{"user1", "user2"}},
 		TagOwners: TagOwners{"tag:test": []string{"user3", "group:test"}},
 		ACLs: []ACL{
@@ -225,12 +138,14 @@ func (s *Suite) TestValidExpandTagOwnersInSources(c *check.C) {
 				Destinations: []string{"*:*"},
 			},
 		},
-	}
-	err = app.UpdateACLRules()
+	})
 	c.Assert(err, check.IsNil)
-	c.Assert(app.aclRules, check.HasLen, 1)
-	c.Assert(app.aclRules[0].SrcIPs, check.HasLen, 1)
-	c.Assert(app.aclRules[0].SrcIPs[0], check.Equals, "100.64.0.1")
+
+	rules, err := app.getACLRules(machine)
+	c.Assert(err, check.IsNil)
+	c.Assert(rules, check.HasLen, 1)
+	c.Assert(rules[0].SrcIPs, check.HasLen, 1)
+	c.Assert(rules[0].SrcIPs[0], check.Equals, "100.64.0.1")
 }
 
 // this test should validate that we can expand a group in a TagOWner section and
@@ -265,7 +180,7 @@ func (s *Suite) TestValidExpandTagOwnersInDestinations(c *check.C) {
 	}
 	app.db.Save(&machine)
 
-	app.aclPolicy = &ACLPolicy{
+	_, err = app.CreateUserACLPolicy(user.ID, ACLPolicy{
 		Groups:    Groups{"group:test": []string{"user1", "user2"}},
 		TagOwners: TagOwners{"tag:test": []string{"user3", "group:test"}},
 		ACLs: []ACL{
@@ -275,17 +190,16 @@ func (s *Suite) TestValidExpandTagOwnersInDestinations(c *check.C) {
 				Destinations: []string{"tag:test:*"},
 			},
 		},
-	}
-	err = app.UpdateACLRules()
+	})
 	c.Assert(err, check.IsNil)
-	c.Assert(app.aclRules, check.HasLen, 1)
-	c.Assert(app.aclRules[0].DstPorts, check.HasLen, 1)
-	c.Assert(app.aclRules[0].DstPorts[0].IP, check.Equals, "100.64.0.1")
+
+	rules, err := app.getACLRules(machine)
+	c.Assert(err, check.IsNil)
+	c.Assert(rules, check.HasLen, 1)
+	c.Assert(rules[0].DstPorts, check.HasLen, 1)
+	c.Assert(rules[0].DstPorts[0].IP, check.Equals, "100.64.0.1")
 }
 
-// need a test with:
-// tag on a host that isn't owned by a tag owners. So the user
-// of the host should be valid.
 func (s *Suite) TestInvalidTagValidUser(c *check.C) {
 	user, err := app.CreateUser("user1")
 	c.Assert(err, check.IsNil)
@@ -315,7 +229,7 @@ func (s *Suite) TestInvalidTagValidUser(c *check.C) {
 	}
 	app.db.Save(&machine)
 
-	app.aclPolicy = &ACLPolicy{
+	_, err = app.CreateUserACLPolicy(user.ID, ACLPolicy{
 		TagOwners: TagOwners{"tag:test": []string{"user1"}},
 		ACLs: []ACL{
 			{
@@ -324,12 +238,14 @@ func (s *Suite) TestInvalidTagValidUser(c *check.C) {
 				Destinations: []string{"*:*"},
 			},
 		},
-	}
-	err = app.UpdateACLRules()
+	})
 	c.Assert(err, check.IsNil)
-	c.Assert(app.aclRules, check.HasLen, 1)
-	c.Assert(app.aclRules[0].SrcIPs, check.HasLen, 1)
-	c.Assert(app.aclRules[0].SrcIPs[0], check.Equals, "100.64.0.1")
+
+	rules, err := app.getACLRules(machine)
+	c.Assert(err, check.IsNil)
+	c.Assert(rules, check.HasLen, 1)
+	c.Assert(rules[0].SrcIPs, check.HasLen, 1)
+	c.Assert(rules[0].SrcIPs[0], check.Equals, "100.64.0.1")
 }
 
 // tag on a host is owned by a tag owner, the tag is valid.
@@ -383,7 +299,7 @@ func (s *Suite) TestValidTagInvalidUser(c *check.C) {
 	}
 	app.db.Save(&machine)
 
-	app.aclPolicy = &ACLPolicy{
+	_, err = app.CreateUserACLPolicy(user.ID, ACLPolicy{
 		TagOwners: TagOwners{"tag:webapp": []string{"user1"}},
 		ACLs: []ACL{
 			{
@@ -392,26 +308,41 @@ func (s *Suite) TestValidTagInvalidUser(c *check.C) {
 				Destinations: []string{"tag:webapp:80,443"},
 			},
 		},
-	}
-	err = app.UpdateACLRules()
+	})
 	c.Assert(err, check.IsNil)
-	c.Assert(app.aclRules, check.HasLen, 1)
-	c.Assert(app.aclRules[0].SrcIPs, check.HasLen, 1)
-	c.Assert(app.aclRules[0].SrcIPs[0], check.Equals, "100.64.0.2")
-	c.Assert(app.aclRules[0].DstPorts, check.HasLen, 2)
-	c.Assert(app.aclRules[0].DstPorts[0].Ports.First, check.Equals, uint16(80))
-	c.Assert(app.aclRules[0].DstPorts[0].Ports.Last, check.Equals, uint16(80))
-	c.Assert(app.aclRules[0].DstPorts[0].IP, check.Equals, "100.64.0.1")
-	c.Assert(app.aclRules[0].DstPorts[1].Ports.First, check.Equals, uint16(443))
-	c.Assert(app.aclRules[0].DstPorts[1].Ports.Last, check.Equals, uint16(443))
-	c.Assert(app.aclRules[0].DstPorts[1].IP, check.Equals, "100.64.0.1")
+
+	rules, err := app.getACLRules(machine)
+	c.Assert(err, check.IsNil)
+	c.Assert(rules, check.HasLen, 1)
+	c.Assert(rules[0].SrcIPs, check.HasLen, 1)
+	c.Assert(rules[0].SrcIPs[0], check.Equals, "100.64.0.2")
+	c.Assert(rules[0].DstPorts, check.HasLen, 2)
+	c.Assert(rules[0].DstPorts[0].Ports.First, check.Equals, uint16(80))
+	c.Assert(rules[0].DstPorts[0].Ports.Last, check.Equals, uint16(80))
+	c.Assert(rules[0].DstPorts[0].IP, check.Equals, "100.64.0.1")
+	c.Assert(rules[0].DstPorts[1].Ports.First, check.Equals, uint16(443))
+	c.Assert(rules[0].DstPorts[1].Ports.Last, check.Equals, uint16(443))
+	c.Assert(rules[0].DstPorts[1].IP, check.Equals, "100.64.0.1")
 }
 
 func (s *Suite) TestPortRange(c *check.C) {
-	err := app.LoadACLPolicy("./tests/acls/acl_policy_basic_range.hujson")
-	c.Assert(err, check.IsNil)
-
-	rules, err := generateACLRules([]Machine{}, *app.aclPolicy, false)
+	rules, err := generateACLRules(nil, ACLPolicy{
+		Groups: map[string][]string{
+			"group:test":  {"foo"},
+			"group:error": {"foo", "group:test"},
+		},
+		Hosts: map[string]netip.Prefix{
+			"host-1":   netip.MustParsePrefix("100.100.100.100/24"),
+			"subnet-1": netip.MustParsePrefix("100.100.101.100/24"),
+		},
+		ACLs: []ACL{
+			{
+				Action:       "accept",
+				Sources:      []string{"subnet-1"},
+				Destinations: []string{"host-1:5400-5500"},
+			},
+		},
+	})
 	c.Assert(err, check.IsNil)
 	c.Assert(rules, check.NotNil)
 
@@ -422,10 +353,32 @@ func (s *Suite) TestPortRange(c *check.C) {
 }
 
 func (s *Suite) TestProtocolParsing(c *check.C) {
-	err := app.LoadACLPolicy("./tests/acls/acl_policy_basic_protocols.hujson")
-	c.Assert(err, check.IsNil)
-
-	rules, err := generateACLRules([]Machine{}, *app.aclPolicy, false)
+	rules, err := generateACLRules(nil, ACLPolicy{
+		Hosts: map[string]netip.Prefix{
+			"host-1":   netip.MustParsePrefix("100.100.100.100/24"),
+			"subnet-1": netip.MustParsePrefix("100.100.101.100/24"),
+		},
+		ACLs: []ACL{
+			{
+				Action:       "accept",
+				Sources:      []string{"*"},
+				Protocol:     "tcp",
+				Destinations: []string{"host-1:*"},
+			},
+			{
+				Action:       "accept",
+				Sources:      []string{"*"},
+				Protocol:     "udp",
+				Destinations: []string{"host-1:*"},
+			},
+			{
+				Action:       "accept",
+				Sources:      []string{"*"},
+				Protocol:     "icmp",
+				Destinations: []string{"host-1:*"},
+			},
+		},
+	})
 	c.Assert(err, check.IsNil)
 	c.Assert(rules, check.NotNil)
 
@@ -436,26 +389,19 @@ func (s *Suite) TestProtocolParsing(c *check.C) {
 }
 
 func (s *Suite) TestPortWildcard(c *check.C) {
-	err := app.LoadACLPolicy("./tests/acls/acl_policy_basic_wildcards.hujson")
-	c.Assert(err, check.IsNil)
-
-	rules, err := generateACLRules([]Machine{}, *app.aclPolicy, false)
-	c.Assert(err, check.IsNil)
-	c.Assert(rules, check.NotNil)
-
-	c.Assert(rules, check.HasLen, 1)
-	c.Assert(rules[0].DstPorts, check.HasLen, 1)
-	c.Assert(rules[0].DstPorts[0].Ports.First, check.Equals, uint16(0))
-	c.Assert(rules[0].DstPorts[0].Ports.Last, check.Equals, uint16(65535))
-	c.Assert(rules[0].SrcIPs, check.HasLen, 1)
-	c.Assert(rules[0].SrcIPs[0], check.Equals, "*")
-}
-
-func (s *Suite) TestPortWildcardYAML(c *check.C) {
-	err := app.LoadACLPolicy("./tests/acls/acl_policy_basic_wildcards.yaml")
-	c.Assert(err, check.IsNil)
-
-	rules, err := generateACLRules([]Machine{}, *app.aclPolicy, false)
+	rules, err := generateACLRules(nil, ACLPolicy{
+		Hosts: map[string]netip.Prefix{
+			"host-1":   netip.MustParsePrefix("100.100.100.100/24"),
+			"subnet-1": netip.MustParsePrefix("100.100.101.100/24"),
+		},
+		ACLs: []ACL{
+			{
+				Action:       "accept",
+				Sources:      []string{"*"},
+				Destinations: []string{"host-1:*"},
+			},
+		},
+	})
 	c.Assert(err, check.IsNil)
 	c.Assert(rules, check.NotNil)
 
@@ -484,21 +430,26 @@ func (s *Suite) TestPortUser(c *check.C) {
 		DiscoKey:       "faa",
 		Hostname:       "testmachine",
 		UserID:         user.ID,
+		User:           *user,
 		RegisterMethod: RegisterMethodAuthKey,
 		IPAddresses:    ips,
 		AuthKeyID:      uint(pak.ID),
 	}
 	app.db.Save(&machine)
 
-	err = app.LoadACLPolicy(
-		"./tests/acls/acl_policy_basic_user_as_user.hujson",
-	)
-	c.Assert(err, check.IsNil)
-
-	machines, err := app.ListMachines()
-	c.Assert(err, check.IsNil)
-
-	rules, err := generateACLRules(machines, *app.aclPolicy, false)
+	rules, err := generateACLRules([]Machine{machine}, ACLPolicy{
+		Hosts: map[string]netip.Prefix{
+			"host-1":   netip.MustParsePrefix("100.100.100.100/24"),
+			"subnet-1": netip.MustParsePrefix("100.100.101.100/24"),
+		},
+		ACLs: []ACL{
+			{
+				Action:       "accept",
+				Sources:      []string{"testuser"},
+				Destinations: []string{"host-1:*"},
+			},
+		},
+	})
 	c.Assert(err, check.IsNil)
 	c.Assert(rules, check.NotNil)
 
@@ -529,19 +480,29 @@ func (s *Suite) TestPortGroup(c *check.C) {
 		DiscoKey:       "faa",
 		Hostname:       "testmachine",
 		UserID:         user.ID,
+		User:           *user,
 		RegisterMethod: RegisterMethodAuthKey,
 		IPAddresses:    ips,
 		AuthKeyID:      uint(pak.ID),
 	}
 	app.db.Save(&machine)
 
-	err = app.LoadACLPolicy("./tests/acls/acl_policy_basic_groups.hujson")
-	c.Assert(err, check.IsNil)
-
-	machines, err := app.ListMachines()
-	c.Assert(err, check.IsNil)
-
-	rules, err := generateACLRules(machines, *app.aclPolicy, false)
+	rules, err := generateACLRules([]Machine{machine}, ACLPolicy{
+		Groups: map[string][]string{
+			"group:example": {"testuser"},
+		},
+		Hosts: map[string]netip.Prefix{
+			"host-1":   netip.MustParsePrefix("100.100.100.100/24"),
+			"subnet-1": netip.MustParsePrefix("100.100.101.100/24"),
+		},
+		ACLs: []ACL{
+			{
+				Action:       "accept",
+				Sources:      []string{"group:example"},
+				Destinations: []string{"host-1:*"},
+			},
+		},
+	})
 	c.Assert(err, check.IsNil)
 	c.Assert(rules, check.NotNil)
 
@@ -609,23 +570,6 @@ func Test_expandGroup(t *testing.T) {
 					},
 				},
 				group:            "group:admin",
-				stripEmailDomain: true,
-			},
-			want:    []string{"joe.bar", "john.doe"},
-			wantErr: false,
-		},
-		{
-			name: "Expand emails in group",
-			args: args{
-				aclPolicy: ACLPolicy{
-					Groups: Groups{
-						"group:admin": []string{
-							"joe.bar@gmail.com",
-							"john.doe@yahoo.fr",
-						},
-					},
-				},
-				group:            "group:admin",
 				stripEmailDomain: false,
 			},
 			want:    []string{"joe.bar.gmail.com", "john.doe.yahoo.fr"},
@@ -634,11 +578,7 @@ func Test_expandGroup(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := expandGroup(
-				test.args.aclPolicy,
-				test.args.group,
-				test.args.stripEmailDomain,
-			)
+			got, err := expandGroup(test.args.aclPolicy, test.args.group)
 			if (err != nil) != test.wantErr {
 				t.Errorf("expandGroup() error = %v, wantErr %v", err, test.wantErr)
 
@@ -729,11 +669,7 @@ func Test_expandTagOwners(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := expandTagOwners(
-				test.args.aclPolicy,
-				test.args.tag,
-				test.args.stripEmailDomain,
-			)
+			got, err := expandTagOwners(test.args.aclPolicy, test.args.tag)
 			if (err != nil) != test.wantErr {
 				t.Errorf("expandTagOwners() error = %v, wantErr %v", err, test.wantErr)
 
@@ -1365,7 +1301,6 @@ func Test_expandAlias(t *testing.T) {
 				test.args.machines,
 				test.args.aclPolicy,
 				test.args.alias,
-				test.args.stripEmailDomain,
 			)
 			if (err != nil) != test.wantErr {
 				t.Errorf("expandAlias() error = %v, wantErr %v", err, test.wantErr)
@@ -1608,7 +1543,6 @@ func Test_excludeCorrectlyTaggedNodes(t *testing.T) {
 				test.args.aclPolicy,
 				test.args.nodes,
 				test.args.user,
-				test.args.stripEmailDomain,
 			)
 			if !reflect.DeepEqual(got, test.want) {
 				t.Errorf("excludeCorrectlyTaggedNodes() = %v, want %v", got, test.want)

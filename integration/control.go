@@ -14,7 +14,13 @@ type ControlServer interface {
 	GetEndpoint() string
 	WaitForReady() error
 	CreateUser(user string) error
-	CreateAuthKey(user string, reusable bool, ephemeral bool) (*v1.PreAuthKey, error)
+	CreateACLPolicy(user string, policy string) error
+	CreateAuthKey(
+		user string,
+		reusable bool,
+		ephemeral bool,
+		tags []string,
+	) (*v1.PreAuthKey, error)
 	ListMachinesInUser(user string) ([]*v1.Machine, error)
 	GetCert() []byte
 	GetHostname() string

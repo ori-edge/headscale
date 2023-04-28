@@ -42,12 +42,19 @@ func TestOIDCAuthenticationPingAll(t *testing.T) {
 
 	baseScenario, err := NewScenario()
 	if err != nil {
-		t.Errorf("failed to create scenario: %s", err)
+		t.Fatalf("failed to create scenario: %s", err)
 	}
 
 	scenario := AuthOIDCScenario{
 		Scenario: baseScenario,
 	}
+
+	t.Cleanup(func() {
+		err = scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
 
 	spec := map[string]int{
 		"user1": len(TailscaleVersions),
@@ -55,7 +62,7 @@ func TestOIDCAuthenticationPingAll(t *testing.T) {
 
 	oidcConfig, err := scenario.runMockOIDC(defaultAccessTTL)
 	if err != nil {
-		t.Errorf("failed to run mock OIDC server: %s", err)
+		t.Fatalf("failed to run mock OIDC server: %s", err)
 	}
 
 	oidcMap := map[string]string{
@@ -80,22 +87,22 @@ func TestOIDCAuthenticationPingAll(t *testing.T) {
 		),
 	)
 	if err != nil {
-		t.Errorf("failed to create headscale environment: %s", err)
+		t.Fatalf("failed to create headscale environment: %s", err)
 	}
 
 	allClients, err := scenario.ListTailscaleClients()
 	if err != nil {
-		t.Errorf("failed to get clients: %s", err)
+		t.Fatalf("failed to get clients: %s", err)
 	}
 
 	allIps, err := scenario.ListTailscaleClientsIPs()
 	if err != nil {
-		t.Errorf("failed to get clients: %s", err)
+		t.Fatalf("failed to get clients: %s", err)
 	}
 
 	err = scenario.WaitForTailscaleSync()
 	if err != nil {
-		t.Errorf("failed wait for tailscale clients to be in sync: %s", err)
+		t.Fatalf("failed wait for tailscale clients to be in sync: %s", err)
 	}
 
 	allAddrs := lo.Map(allIps, func(x netip.Addr, index int) string {
@@ -104,11 +111,6 @@ func TestOIDCAuthenticationPingAll(t *testing.T) {
 
 	success := pingAllHelper(t, allClients, allAddrs)
 	t.Logf("%d successful pings out of %d", success, len(allClients)*len(allIps))
-
-	err = scenario.Shutdown()
-	if err != nil {
-		t.Errorf("failed to tear down scenario: %s", err)
-	}
 }
 
 func TestOIDCExpireNodesBasedOnTokenExpiry(t *testing.T) {
@@ -125,6 +127,13 @@ func TestOIDCExpireNodesBasedOnTokenExpiry(t *testing.T) {
 	scenario := AuthOIDCScenario{
 		Scenario: baseScenario,
 	}
+
+	t.Cleanup(func() {
+		err = scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
 
 	spec := map[string]int{
 		"user1": len(TailscaleVersions),
@@ -184,30 +193,34 @@ func TestOIDCExpireNodesBasedOnTokenExpiry(t *testing.T) {
 
 	// await all nodes being logged out after OIDC token expiry
 	scenario.WaitForTailscaleLogout()
-
-	err = scenario.Shutdown()
-	if err != nil {
-		t.Errorf("failed to tear down scenario: %s", err)
-	}
 }
 
 func (s *AuthOIDCScenario) CreateHeadscaleEnv(
 	users map[string]int,
 	opts ...hsic.Option,
 ) error {
-	headscale, err := s.Headscale(opts...)
+	//nolint:varnamelen
+	hs, err := s.Headscale(opts...)
 	if err != nil {
 		return err
 	}
 
-	err = headscale.WaitForReady()
+	err = hs.WaitForReady()
 	if err != nil {
 		return err
 	}
 
-	for userName, clientCount := range users {
+	// default mockoidc user name - https://github.com/oauth2-proxy/mockoidc/blob/b9169deeb282719de18e695878955682a4c6fa65/user.go#L42
+	// we create a user with the same name so that we can attach an acl policy to it
+	userName := "jane.doe"
+	for _, clientCount := range users {
 		log.Printf("creating user %s with %d clients", userName, clientCount)
 		err = s.CreateUser(userName)
+		if err != nil {
+			return err
+		}
+		// allow full connectivity within the same user for tests
+		err = s.CreateUserACLPolicy(userName, allowAllPolicy)
 		if err != nil {
 			return err
 		}
@@ -217,7 +230,7 @@ func (s *AuthOIDCScenario) CreateHeadscaleEnv(
 			return err
 		}
 
-		err = s.runTailscaleUp(userName, headscale.GetEndpoint())
+		err = s.runTailscaleUp(userName, hs.GetEndpoint())
 		if err != nil {
 			return err
 		}

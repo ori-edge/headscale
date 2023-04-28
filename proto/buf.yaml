@@ -1,7 +1,7 @@
 version: v1
 lint:
   use:
-    - DEFAULT
+    - BASIC
 breaking:
   use:
     - FILE

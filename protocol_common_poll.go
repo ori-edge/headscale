@@ -41,27 +41,15 @@ func (h *Headscale) handlePollCommon(
 			Msg("Error processing machine routes")
 	}
 
-	// update ACLRules with peer informations (to update server tags if necessary)
-	if h.aclPolicy != nil {
-		err := h.UpdateACLRules()
-		if err != nil {
-			log.Error().
-				Caller().
-				Bool("noise", isNoise).
-				Str("machine", machine.Hostname).
-				Err(err)
-		}
-
-		// update routes with peer information
-		err = h.EnableAutoApprovedRoutes(machine)
-		if err != nil {
-			log.Error().
-				Caller().
-				Bool("noise", isNoise).
-				Str("machine", machine.Hostname).
-				Err(err).
-				Msg("Error running auto approved routes")
-		}
+	// update routes with peer information
+	err = h.EnableAutoApprovedRoutes(machine)
+	if err != nil {
+		log.Error().
+			Caller().
+			Bool("noise", isNoise).
+			Str("machine", machine.Hostname).
+			Err(err).
+			Msg("Error running auto approved routes")
 	}
 
 	// From Tailscale client:
@@ -322,9 +310,9 @@ func (h *Headscale) pollNetMapStream(
 				Str("channel", "pollData").
 				Int("bytes", len(data)).
 				Msg("Data from pollData channel written successfully")
-				// TODO(kradalby): Abstract away all the database calls, this can cause race conditions
-				// when an outdated machine object is kept alive, e.g. db is update from
-				// command line, but then overwritten.
+			// TODO(kradalby): Abstract away all the database calls, this can cause race conditions
+			// when an outdated machine object is kept alive, e.g. db is update from
+			// command line, but then overwritten.
 			err = h.UpdateMachineFromDatabase(machine)
 			if err != nil {
 				log.Error().
@@ -406,9 +394,9 @@ func (h *Headscale) pollNetMapStream(
 				Str("channel", "keepAlive").
 				Int("bytes", len(data)).
 				Msg("Keep alive sent successfully")
-				// TODO(kradalby): Abstract away all the database calls, this can cause race conditions
-				// when an outdated machine object is kept alive, e.g. db is update from
-				// command line, but then overwritten.
+			// TODO(kradalby): Abstract away all the database calls, this can cause race conditions
+			// when an outdated machine object is kept alive, e.g. db is update from
+			// command line, but then overwritten.
 			err = h.UpdateMachineFromDatabase(machine)
 			if err != nil {
 				log.Error().
@@ -575,9 +563,9 @@ func (h *Headscale) pollNetMapStream(
 				Str("handler", "PollNetMapStream").
 				Str("machine", machine.Hostname).
 				Msg("The client has closed the connection")
-				// TODO: Abstract away all the database calls, this can cause race conditions
-				// when an outdated machine object is kept alive, e.g. db is update from
-				// command line, but then overwritten.
+			// TODO: Abstract away all the database calls, this can cause race conditions
+			// when an outdated machine object is kept alive, e.g. db is update from
+			// command line, but then overwritten.
 			err := h.UpdateMachineFromDatabase(machine)
 			if err != nil {
 				log.Error().

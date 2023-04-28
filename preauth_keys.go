@@ -93,13 +93,15 @@ func (h *Headscale) CreatePreAuthKey(
 
 			for _, tag := range aclTags {
 				if !seenTags[tag] {
-					if err := db.Save(&PreAuthKeyACLTag{PreAuthKeyID: key.ID, Tag: tag}).Error; err != nil {
+					aclTag := PreAuthKeyACLTag{PreAuthKeyID: key.ID, Tag: tag}
+					if err := db.Save(&aclTag).Error; err != nil {
 						return fmt.Errorf(
 							"failed to ceate key tag in the database: %w",
 							err,
 						)
 					}
 					seenTags[tag] = true
+					key.ACLTags = append(key.ACLTags, aclTag)
 				}
 			}
 		}

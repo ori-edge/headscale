@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
@@ -179,6 +178,17 @@ func (s *Suite) TestListPeers(c *check.C) {
 	user, err := app.CreateUser("test")
 	c.Assert(err, check.IsNil)
 
+	_, err = app.CreateUserACLPolicy(user.ID, ACLPolicy{
+		ACLs: []ACL{
+			{
+				Action:       "accept",
+				Sources:      []string{"*"},
+				Destinations: []string{"*:*"},
+			},
+		},
+	})
+	c.Assert(err, check.IsNil)
+
 	pak, err := app.CreatePreAuthKey(user.Name, false, false, nil, nil)
 	c.Assert(err, check.IsNil)
 
@@ -212,25 +222,17 @@ func (s *Suite) TestListPeers(c *check.C) {
 }
 
 func (s *Suite) TestGetACLFilteredPeers(c *check.C) {
-	type base struct {
-		user *User
-		key  *PreAuthKey
-	}
+	name := "test"
 
-	stor := make([]base, 0)
+	user, err := app.CreateUser(name)
+	c.Assert(err, check.IsNil)
+	pak, err := app.CreatePreAuthKey(user.Name, false, false, nil, nil)
+	c.Assert(err, check.IsNil)
 
-	for _, name := range []string{"test", "admin"} {
-		user, err := app.CreateUser(name)
-		c.Assert(err, check.IsNil)
-		pak, err := app.CreatePreAuthKey(user.Name, false, false, nil, nil)
-		c.Assert(err, check.IsNil)
-		stor = append(stor, base{user, pak})
-	}
-
-	_, err := app.GetMachineByID(0)
+	_, err = app.GetMachineByID(0)
 	c.Assert(err, check.NotNil)
 
-	for index := 0; index <= 10; index++ {
+	for index := 0; index <= 3; index++ {
 		machine := Machine{
 			ID:         uint64(index),
 			MachineKey: "foo" + strconv.Itoa(index),
@@ -240,62 +242,65 @@ func (s *Suite) TestGetACLFilteredPeers(c *check.C) {
 				netip.MustParseAddr(fmt.Sprintf("100.64.0.%v", strconv.Itoa(index+1))),
 			},
 			Hostname:       "testmachine" + strconv.Itoa(index),
-			UserID:         stor[index%2].user.ID,
+			UserID:         user.ID,
 			RegisterMethod: RegisterMethodAuthKey,
-			AuthKeyID:      uint(stor[index%2].key.ID),
+			AuthKeyID:      uint(pak.ID),
+			ForcedTags:     []string{fmt.Sprintf("tag:machine-%d", index)},
 		}
 		app.db.Save(&machine)
 	}
 
-	app.aclPolicy = &ACLPolicy{
-		Groups: map[string][]string{
-			"group:test": {"admin"},
-		},
-		Hosts:     map[string]netip.Prefix{},
-		TagOwners: map[string][]string{},
+	//
+	_, err = app.CreateUserACLPolicy(user.ID, ACLPolicy{
 		ACLs: []ACL{
 			{
 				Action:       "accept",
-				Sources:      []string{"admin"},
-				Destinations: []string{"*:*"},
-			},
-			{
-				Action:       "accept",
-				Sources:      []string{"test"},
-				Destinations: []string{"test:*"},
+				Sources:      []string{"tag:machine-1"},
+				Destinations: []string{"tag:machine-2:*"},
 			},
 		},
-		Tests: []ACLTest{},
-	}
-
-	err = app.UpdateACLRules()
+		TagOwners: map[string][]string{
+			"tag:machine-1": {name},
+			"tag:machine-2": {name},
+		},
+	})
 	c.Assert(err, check.IsNil)
 
-	adminMachine, err := app.GetMachineByID(1)
-	c.Logf("Machine(%v), user: %v", adminMachine.Hostname, adminMachine.User)
+	peer0, err := app.GetMachineByID(1)
+	c.Logf("Machine(%v), user: %v", peer0.Hostname, peer0.User)
 	c.Assert(err, check.IsNil)
 
-	testMachine, err := app.GetMachineByID(2)
-	c.Logf("Machine(%v), user: %v", testMachine.Hostname, testMachine.User)
+	peer1, err := app.GetMachineByID(2)
+	c.Logf("Machine(%v), user: %v", peer1.Hostname, peer1.User)
 	c.Assert(err, check.IsNil)
 
-	machines, err := app.ListMachines()
+	peer2, err := app.GetMachineByID(3)
+	c.Logf("Machine(%v), user: %v", peer2.Hostname, peer2.User)
 	c.Assert(err, check.IsNil)
 
-	peersOfTestMachine := app.filterMachinesByACL(testMachine, machines)
-	peersOfAdminMachine := app.filterMachinesByACL(adminMachine, machines)
+	peersOfPeer0, err := app.getPeers(peer0)
+	c.Assert(err, check.IsNil)
 
-	c.Log(peersOfTestMachine)
-	c.Assert(len(peersOfTestMachine), check.Equals, 9)
-	c.Assert(peersOfTestMachine[0].Hostname, check.Equals, "testmachine1")
-	c.Assert(peersOfTestMachine[1].Hostname, check.Equals, "testmachine3")
-	c.Assert(peersOfTestMachine[3].Hostname, check.Equals, "testmachine5")
+	peersOfPeer1, err := app.getPeers(peer1)
+	c.Assert(err, check.IsNil)
 
-	c.Log(peersOfAdminMachine)
-	c.Assert(len(peersOfAdminMachine), check.Equals, 9)
-	c.Assert(peersOfAdminMachine[0].Hostname, check.Equals, "testmachine2")
-	c.Assert(peersOfAdminMachine[2].Hostname, check.Equals, "testmachine4")
-	c.Assert(peersOfAdminMachine[5].Hostname, check.Equals, "testmachine7")
+	peersOfPeer2, err := app.getPeers(peer2)
+	c.Assert(err, check.IsNil)
+
+	c.Log(peersOfPeer0)
+	c.Assert(len(peersOfPeer0), check.Equals, 1)
+	c.Assert(peersOfPeer0[0].Hostname, check.Equals, "testmachine2")
+
+	c.Log(peersOfPeer1)
+	c.Assert(len(peersOfPeer1), check.Equals, 1)
+	c.Assert(peersOfPeer1[0].Hostname, check.Equals, "testmachine1")
+
+	c.Log(peersOfPeer2)
+	c.Assert(len(peersOfPeer2), check.Equals, 0)
+}
+
+func (s *Suite) TestGetACLFilteredPeers_scopedByUser(c *check.C) {
+	// TODO
 }
 
 func (s *Suite) TestExpireMachine(c *check.C) {
@@ -573,11 +578,7 @@ func Test_getTags(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			gotValid, gotInvalid := getTags(
-				test.args.aclPolicy,
-				test.args.machine,
-				test.args.stripEmailDomain,
-			)
+			gotValid, gotInvalid := getTags(test.args.aclPolicy, test.args.machine)
 			for _, valid := range gotValid {
 				if !contains(test.wantValid, valid) {
 					t.Errorf(
@@ -1057,7 +1058,6 @@ func Test_getFilteredByACLPeers(t *testing.T) {
 			},
 		},
 	}
-	var lock sync.RWMutex
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			aclRulesMap := generateACLPeerCacheMap(tt.args.rules)
@@ -1065,7 +1065,6 @@ func Test_getFilteredByACLPeers(t *testing.T) {
 			got := filterMachinesByACL(
 				tt.args.machine,
 				tt.args.machines,
-				&lock,
 				aclRulesMap,
 			)
 			if !reflect.DeepEqual(got, tt.want) {
@@ -1247,10 +1246,27 @@ func TestHeadscale_generateGivenName(t *testing.T) {
 }
 
 func (s *Suite) TestAutoApproveRoutes(c *check.C) {
-	err := app.LoadACLPolicy("./tests/acls/acl_policy_autoapprovers.hujson")
+	user, err := app.CreateUser("test")
 	c.Assert(err, check.IsNil)
 
-	user, err := app.CreateUser("test")
+	_, err = app.CreateUserACLPolicy(user.ID, ACLPolicy{
+		Groups:    Groups{"group:test": []string{"test"}},
+		TagOwners: TagOwners{"tag:exit": []string{"test"}},
+		ACLs: []ACL{
+			{
+				Action:       "accept",
+				Sources:      []string{"tag:test"},
+				Destinations: []string{"*:*"},
+			},
+		},
+		AutoApprovers: AutoApprovers{
+			Routes: map[string][]string{
+				"10.10.0.0/16": {"group:test"},
+				"10.11.0.0/16": {"test"},
+			},
+			ExitNode: []string{"tag:exit"},
+		},
+	})
 	c.Assert(err, check.IsNil)
 
 	pak, err := app.CreatePreAuthKey(user.Name, false, false, nil, nil)
