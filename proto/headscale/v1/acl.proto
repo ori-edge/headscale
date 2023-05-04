@@ -11,17 +11,24 @@ message ACLPolicy {
 }
 
 message Protocol {
-    //nolint
     enum Enum {
-        ANY  = 0;
+        // defaults to ICMPv4, ICMPv6, TCP, and UDP
+        ANY = 0;
+
         TCP  = 1;
         UDP  = 2;
         ICMP = 3;
+        SCTP = 4;
+        IGMP = 5;
+        IPV4 = 6;
+        EGP  = 7;
+        IGP  = 8;
+        GRE  = 9;
+        AH   = 10;
     }
 }
 
 message ACL {
-    //nolint
     enum Action {
         UNKNOWN = 0;
         ACCEPT  = 1;

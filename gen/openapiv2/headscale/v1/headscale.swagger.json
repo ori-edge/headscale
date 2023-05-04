@@ -850,8 +850,7 @@
         "UNKNOWN",
         "ACCEPT"
       ],
-      "default": "UNKNOWN",
-      "title": "nolint"
+      "default": "UNKNOWN"
     },
     "ProtocolEnum": {
       "type": "string",
@@ -859,10 +858,17 @@
         "ANY",
         "TCP",
         "UDP",
-        "ICMP"
+        "ICMP",
+        "SCTP",
+        "IGMP",
+        "IPV4",
+        "EGP",
+        "IGP",
+        "GRE",
+        "AH"
       ],
       "default": "ANY",
-      "title": "nolint"
+      "title": "- ANY: defaults to ICMPv4, ICMPv6, TCP, and UDP"
     },
     "protobufAny": {
       "type": "object",
