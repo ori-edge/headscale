@@ -26,7 +26,7 @@ func executeAndUnmarshal[T any](
 
 	err = json.Unmarshal([]byte(str), result)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to unmarshal '%s': %w", []byte(str), err)
 	}
 
 	return nil
@@ -38,6 +38,14 @@ func TestUserCommand(t *testing.T) {
 
 	scenario, err := NewScenario()
 	assert.NoError(t, err)
+
+	t.Cleanup(func() {
+		t.Log("tearing down scenario")
+		err := scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
 
 	spec := map[string]int{
 		"user1": 0,
@@ -107,7 +115,95 @@ func TestUserCommand(t *testing.T) {
 		result,
 	)
 
-	err = scenario.Shutdown()
+	_, err = headscale.Execute(
+		[]string{
+			"headscale",
+			"users",
+			"delete",
+			"--output",
+			"json",
+			"--force",
+			"user1",
+		},
+	)
+	assert.NoError(t, err)
+
+	var listAfterDelete []v1.User
+	err = executeAndUnmarshal(headscale,
+		[]string{
+			"headscale",
+			"users",
+			"list",
+			"--output",
+			"json",
+		},
+		&listAfterDelete,
+	)
+	assert.NoError(t, err)
+	assert.Len(t, listAfterDelete, 1)
+
+	result = []string{listAfterDelete[0].Name}
+	sort.Strings(result)
+
+	assert.Equal(
+		t,
+		[]string{"newname"},
+		result,
+	)
+}
+
+func TestACLCommand(t *testing.T) {
+	IntegrationSkip(t)
+	t.Parallel()
+
+	scenario, err := NewScenario()
+	assert.NoError(t, err)
+
+	t.Cleanup(func() {
+		t.Log("tearing down scenario")
+		err := scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
+
+	err = scenario.CreateUser("user1")
+	if err != nil {
+		assert.NoError(t, err)
+	}
+
+	headscale, err := scenario.Headscale()
+	assert.NoError(t, err)
+
+	examplePolicy := `
+{
+	"acls": [{"action":"accept", "sources":["*"], "destinations": ["*:*"]}]
+}
+`
+	output, err := headscale.Execute(
+		[]string{
+			"headscale",
+			"acls",
+			"--user",
+			"user1",
+			"create",
+			examplePolicy,
+		},
+	)
+	assert.NoError(t, err, "command failed with %s", output)
+
+	// test on delete cascade
+	_, err = headscale.Execute(
+		[]string{
+			"headscale",
+			"users",
+			"delete",
+			"--output",
+			"json",
+			"--force",
+			"user1",
+		},
+	)
 	assert.NoError(t, err)
 }
 
@@ -120,6 +216,14 @@ func TestPreAuthKeyCommand(t *testing.T) {
 
 	scenario, err := NewScenario()
 	assert.NoError(t, err)
+
+	t.Cleanup(func() {
+		t.Log("tearing down scenario")
+		err := scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
 
 	spec := map[string]int{
 		user: 0,
@@ -268,9 +372,6 @@ func TestPreAuthKeyCommand(t *testing.T) {
 		t,
 		listedPreAuthKeysAfterExpire[3].Expiration.AsTime().After(time.Now()),
 	)
-
-	err = scenario.Shutdown()
-	assert.NoError(t, err)
 }
 
 func TestPreAuthKeyCommandWithoutExpiry(t *testing.T) {
@@ -281,6 +382,14 @@ func TestPreAuthKeyCommandWithoutExpiry(t *testing.T) {
 
 	scenario, err := NewScenario()
 	assert.NoError(t, err)
+
+	t.Cleanup(func() {
+		t.Log("tearing down scenario")
+		err := scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
 
 	spec := map[string]int{
 		user: 0,
@@ -337,9 +446,6 @@ func TestPreAuthKeyCommandWithoutExpiry(t *testing.T) {
 		t,
 		listedPreAuthKeys[1].Expiration.AsTime().Before(time.Now().Add(time.Minute*70)),
 	)
-
-	err = scenario.Shutdown()
-	assert.NoError(t, err)
 }
 
 func TestPreAuthKeyCommandReusableEphemeral(t *testing.T) {
@@ -350,6 +456,14 @@ func TestPreAuthKeyCommandReusableEphemeral(t *testing.T) {
 
 	scenario, err := NewScenario()
 	assert.NoError(t, err)
+
+	t.Cleanup(func() {
+		t.Log("tearing down scenario")
+		err := scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
 
 	spec := map[string]int{
 		user: 0,
@@ -420,9 +534,6 @@ func TestPreAuthKeyCommandReusableEphemeral(t *testing.T) {
 
 	// There is one key created by "scenario.CreateHeadscaleEnv"
 	assert.Len(t, listedPreAuthKeys, 3)
-
-	err = scenario.Shutdown()
-	assert.NoError(t, err)
 }
 
 func TestEnablingRoutes(t *testing.T) {
@@ -433,6 +544,14 @@ func TestEnablingRoutes(t *testing.T) {
 
 	scenario, err := NewScenario()
 	assert.NoError(t, err)
+
+	t.Cleanup(func() {
+		t.Log("tearing down scenario")
+		err := scenario.Shutdown()
+		if err != nil {
+			t.Errorf("failed to tear down scenario: %s", err)
+		}
+	})
 
 	spec := map[string]int{
 		user: 3,

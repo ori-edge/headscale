@@ -1,8 +1,0 @@
-// This ACL validates autoApprovers support for
-// exit nodes and advertised routes
-
-{
-    "acls": [
-        {"action": "accept","src": ["*"], "dst": ["*:*"]},
-    ],
-}

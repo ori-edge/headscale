@@ -7,7 +7,6 @@ require (
 	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/coreos/go-oidc/v3 v3.5.0
 	github.com/davecgh/go-spew v1.1.1
-	github.com/deckarep/golang-set/v2 v2.3.0
 	github.com/efekarakus/termcolor v1.0.1
 	github.com/glebarez/sqlite v1.7.0
 	github.com/gofrs/uuid/v5 v5.0.0

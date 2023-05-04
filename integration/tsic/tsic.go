@@ -311,8 +311,13 @@ func (t *TailscaleInContainer) Up(
 		)
 	}
 
-	if _, _, err := t.Execute(command); err != nil {
-		return fmt.Errorf("failed to join tailscale client: %w", err)
+	if stdout, stderr, err := t.Execute(command); err != nil {
+		return fmt.Errorf(
+			"failed to join tailscale client: %w\nstdout: %s\nstderr: %s",
+			err,
+			stdout,
+			stderr,
+		)
 	}
 
 	return nil
@@ -552,7 +557,8 @@ func (t *TailscaleInContainer) Ping(hostnameOrIP string, opts ...PingOption) err
 		result, _, err := t.Execute(
 			command,
 			dockertestutil.ExecuteCommandTimeout(
-				time.Duration(int64(args.timeout)*int64(args.count)),
+				//nolint:gomnd
+				time.Duration(int64(args.timeout)*int64(args.count)*3),
 			),
 		)
 		if err != nil {

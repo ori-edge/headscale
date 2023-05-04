@@ -84,12 +84,6 @@ type Headscale struct {
 	DERPMap    *tailcfg.DERPMap
 	DERPServer *DERPServer
 
-	aclPolicy         *ACLPolicy
-	aclRules          []tailcfg.FilterRule
-	aclPeerCacheMapRW sync.RWMutex
-	aclPeerCacheMap   map[string]map[string]struct{}
-	sshPolicy         *tailcfg.SSHPolicy
-
 	lastStateChange *xsync.MapOf[string, time.Time]
 
 	oidcProvider *oidc.Provider
@@ -167,7 +161,6 @@ func NewHeadscale(cfg *Config) (*Headscale, error) {
 		dbString:           dbString,
 		privateKey:         privateKey,
 		noisePrivateKey:    noisePrivateKey,
-		aclRules:           tailcfg.FilterAllowAll, // default allowall
 		registrationCache:  registrationCache,
 		pollNetMapStreamWG: sync.WaitGroup{},
 		lastStateChange:    xsync.NewMapOf[time.Time](),
@@ -747,87 +740,62 @@ func (h *Headscale) Serve() error {
 	h.shutdownChan = make(chan struct{})
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
-		syscall.SIGHUP,
 		syscall.SIGINT,
 		syscall.SIGTERM,
-		syscall.SIGQUIT,
-		syscall.SIGHUP)
+		syscall.SIGQUIT)
 	sigFunc := func(c chan os.Signal) {
 		// Wait for a SIGINT or SIGKILL:
 		for {
 			sig := <-c
-			switch sig {
-			case syscall.SIGHUP:
-				log.Info().
-					Str("signal", sig.String()).
-					Msg("Received SIGHUP, reloading ACL and Config")
+			log.Info().
+				Str("signal", sig.String()).
+				Msg("Received signal to stop, shutting down gracefully")
 
-				// TODO(kradalby): Reload config on SIGHUP
+			close(h.shutdownChan)
+			h.pollNetMapStreamWG.Wait()
 
-				if h.cfg.ACL.PolicyPath != "" {
-					aclPath := AbsolutePathFromConfigPath(h.cfg.ACL.PolicyPath)
-					err := h.LoadACLPolicy(aclPath)
-					if err != nil {
-						log.Error().Err(err).Msg("Failed to reload ACL policy")
-					}
-					log.Info().
-						Str("path", aclPath).
-						Msg("ACL policy successfully reloaded, notifying nodes of change")
-
-					h.setLastStateChangeToNow()
-				}
-
-			default:
-				log.Info().
-					Str("signal", sig.String()).
-					Msg("Received signal to stop, shutting down gracefully")
-
-				close(h.shutdownChan)
-				h.pollNetMapStreamWG.Wait()
-
-				// Gracefully shut down servers
-				ctx, cancel := context.WithTimeout(
-					context.Background(),
-					HTTPShutdownTimeout,
-				)
-				if err := promHTTPServer.Shutdown(ctx); err != nil {
-					log.Error().Err(err).Msg("Failed to shutdown prometheus http")
-				}
-				if err := httpServer.Shutdown(ctx); err != nil {
-					log.Error().Err(err).Msg("Failed to shutdown http")
-				}
-				grpcSocket.GracefulStop()
-
-				if grpcServer != nil {
-					grpcServer.GracefulStop()
-					grpcListener.Close()
-				}
-
-				// Close network listeners
-				promHTTPListener.Close()
-				httpListener.Close()
-				grpcGatewayConn.Close()
-
-				// Stop listening (and unlink the socket if unix type):
-				socketListener.Close()
-
-				// Close db connections
-				db, err := h.db.DB()
-				if err != nil {
-					log.Error().Err(err).Msg("Failed to get db handle")
-				}
-				err = db.Close()
-				if err != nil {
-					log.Error().Err(err).Msg("Failed to close db")
-				}
-
-				log.Info().
-					Msg("Headscale stopped")
-
-				// And we're done:
-				cancel()
-				os.Exit(0)
+			// Gracefully shut down servers
+			ctx, cancel := context.WithTimeout(
+				context.Background(),
+				HTTPShutdownTimeout,
+			)
+			if err := promHTTPServer.Shutdown(ctx); err != nil {
+				log.Error().Err(err).Msg("Failed to shutdown prometheus http")
 			}
+			if err := httpServer.Shutdown(ctx); err != nil {
+				log.Error().Err(err).Msg("Failed to shutdown http")
+			}
+			grpcSocket.GracefulStop()
+
+			if grpcServer != nil {
+				grpcServer.GracefulStop()
+				grpcListener.Close()
+			}
+
+			// Close network listeners
+			promHTTPListener.Close()
+			httpListener.Close()
+			grpcGatewayConn.Close()
+
+			// Stop listening (and unlink the socket if unix type):
+			socketListener.Close()
+
+			// Close db connections
+			db, err := h.db.DB()
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to get db handle")
+			}
+			err = db.Close()
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to close db")
+			}
+
+			log.Info().
+				Msg("Headscale stopped")
+
+			// And we're done:
+			cancel()
+			os.Exit(0)
 		}
 	}
 	errorGroup.Go(func() error {

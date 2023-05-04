@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ori-edge/headscale"
 	"github.com/ori-edge/headscale/integration/hsic"
 	"github.com/ori-edge/headscale/integration/tsic"
 	"github.com/stretchr/testify/assert"
@@ -42,6 +41,7 @@ var retry = func(times int, sleepInterval time.Duration,
 }
 
 func TestSSHOneUserAllToAll(t *testing.T) {
+	t.Skip("functionality removed in ori-edge")
 	IntegrationSkip(t)
 	t.Parallel()
 
@@ -56,28 +56,6 @@ func TestSSHOneUserAllToAll(t *testing.T) {
 
 	err = scenario.CreateHeadscaleEnv(spec,
 		[]tsic.Option{tsic.WithSSH()},
-		hsic.WithACLPolicy(
-			&headscale.ACLPolicy{
-				Groups: map[string][]string{
-					"group:integration-test": {"user1"},
-				},
-				ACLs: []headscale.ACL{
-					{
-						Action:       "accept",
-						Sources:      []string{"*"},
-						Destinations: []string{"*:*"},
-					},
-				},
-				SSHs: []headscale.SSH{
-					{
-						Action:       "accept",
-						Sources:      []string{"group:integration-test"},
-						Destinations: []string{"group:integration-test"},
-						Users:        []string{"ssh-it-user"},
-					},
-				},
-			},
-		),
 		hsic.WithConfigEnv(map[string]string{
 			"HEADSCALE_EXPERIMENTAL_FEATURE_SSH": "1",
 		}),
@@ -118,6 +96,7 @@ func TestSSHOneUserAllToAll(t *testing.T) {
 }
 
 func TestSSHMultipleUsersAllToAll(t *testing.T) {
+	t.Skip("functionality removed in ori-edge")
 	IntegrationSkip(t)
 	t.Parallel()
 
@@ -133,28 +112,6 @@ func TestSSHMultipleUsersAllToAll(t *testing.T) {
 
 	err = scenario.CreateHeadscaleEnv(spec,
 		[]tsic.Option{tsic.WithSSH()},
-		hsic.WithACLPolicy(
-			&headscale.ACLPolicy{
-				Groups: map[string][]string{
-					"group:integration-test": {"user1", "user2"},
-				},
-				ACLs: []headscale.ACL{
-					{
-						Action:       "accept",
-						Sources:      []string{"*"},
-						Destinations: []string{"*:*"},
-					},
-				},
-				SSHs: []headscale.SSH{
-					{
-						Action:       "accept",
-						Sources:      []string{"group:integration-test"},
-						Destinations: []string{"group:integration-test"},
-						Users:        []string{"ssh-it-user"},
-					},
-				},
-			},
-		),
 		hsic.WithConfigEnv(map[string]string{
 			"HEADSCALE_EXPERIMENTAL_FEATURE_SSH": "1",
 		}),
@@ -201,6 +158,7 @@ func TestSSHMultipleUsersAllToAll(t *testing.T) {
 }
 
 func TestSSHNoSSHConfigured(t *testing.T) {
+	t.Skip("functionality removed in ori-edge")
 	IntegrationSkip(t)
 	t.Parallel()
 
@@ -215,21 +173,6 @@ func TestSSHNoSSHConfigured(t *testing.T) {
 
 	err = scenario.CreateHeadscaleEnv(spec,
 		[]tsic.Option{tsic.WithSSH()},
-		hsic.WithACLPolicy(
-			&headscale.ACLPolicy{
-				Groups: map[string][]string{
-					"group:integration-test": {"user1"},
-				},
-				ACLs: []headscale.ACL{
-					{
-						Action:       "accept",
-						Sources:      []string{"*"},
-						Destinations: []string{"*:*"},
-					},
-				},
-				SSHs: []headscale.SSH{},
-			},
-		),
 		hsic.WithTestName("sshnoneconfigured"),
 		hsic.WithConfigEnv(map[string]string{
 			"HEADSCALE_EXPERIMENTAL_FEATURE_SSH": "1",
@@ -271,6 +214,7 @@ func TestSSHNoSSHConfigured(t *testing.T) {
 }
 
 func TestSSHIsBlockedInACL(t *testing.T) {
+	t.Skip("functionality removed in ori-edge")
 	IntegrationSkip(t)
 	t.Parallel()
 
@@ -285,28 +229,6 @@ func TestSSHIsBlockedInACL(t *testing.T) {
 
 	err = scenario.CreateHeadscaleEnv(spec,
 		[]tsic.Option{tsic.WithSSH()},
-		hsic.WithACLPolicy(
-			&headscale.ACLPolicy{
-				Groups: map[string][]string{
-					"group:integration-test": {"user1"},
-				},
-				ACLs: []headscale.ACL{
-					{
-						Action:       "accept",
-						Sources:      []string{"*"},
-						Destinations: []string{"*:80"},
-					},
-				},
-				SSHs: []headscale.SSH{
-					{
-						Action:       "accept",
-						Sources:      []string{"group:integration-test"},
-						Destinations: []string{"group:integration-test"},
-						Users:        []string{"ssh-it-user"},
-					},
-				},
-			},
-		),
 		hsic.WithTestName("sshisblockedinacl"),
 		hsic.WithConfigEnv(map[string]string{
 			"HEADSCALE_EXPERIMENTAL_FEATURE_SSH": "1",
@@ -348,6 +270,7 @@ func TestSSHIsBlockedInACL(t *testing.T) {
 }
 
 func TestSSUserOnlyIsolation(t *testing.T) {
+	t.Skip("functionality removed in ori-edge")
 	IntegrationSkip(t)
 	t.Parallel()
 
@@ -363,35 +286,6 @@ func TestSSUserOnlyIsolation(t *testing.T) {
 
 	err = scenario.CreateHeadscaleEnv(spec,
 		[]tsic.Option{tsic.WithSSH()},
-		hsic.WithACLPolicy(
-			&headscale.ACLPolicy{
-				Groups: map[string][]string{
-					"group:ssh1": {"useracl1"},
-					"group:ssh2": {"useracl2"},
-				},
-				ACLs: []headscale.ACL{
-					{
-						Action:       "accept",
-						Sources:      []string{"*"},
-						Destinations: []string{"*:*"},
-					},
-				},
-				SSHs: []headscale.SSH{
-					{
-						Action:       "accept",
-						Sources:      []string{"group:ssh1"},
-						Destinations: []string{"group:ssh1"},
-						Users:        []string{"ssh-it-user"},
-					},
-					{
-						Action:       "accept",
-						Sources:      []string{"group:ssh2"},
-						Destinations: []string{"group:ssh2"},
-						Users:        []string{"ssh-it-user"},
-					},
-				},
-			},
-		),
 		hsic.WithTestName("sshtwouseraclblock"),
 		hsic.WithConfigEnv(map[string]string{
 			"HEADSCALE_EXPERIMENTAL_FEATURE_SSH": "1",

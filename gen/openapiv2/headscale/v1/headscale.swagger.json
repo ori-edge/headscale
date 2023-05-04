@@ -798,9 +798,72 @@
           "HeadscaleService"
         ]
       }
+    },
+    "/api/v1/user/{user}/acl": {
+      "post": {
+        "operationId": "HeadscaleService_CreateACLPolicy",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CreateACLPolicyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "user",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "aclPolicy": {
+                  "$ref": "#/definitions/v1ACLPolicy"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "HeadscaleService"
+        ]
+      }
     }
   },
   "definitions": {
+    "ACLAction": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN",
+        "ACCEPT"
+      ],
+      "default": "UNKNOWN",
+      "title": "nolint"
+    },
+    "ProtocolEnum": {
+      "type": "string",
+      "enum": [
+        "ANY",
+        "TCP",
+        "UDP",
+        "ICMP"
+      ],
+      "default": "ANY",
+      "title": "nolint"
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -828,6 +891,131 @@
         }
       }
     },
+    "v1ACL": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "$ref": "#/definitions/ACLAction"
+        },
+        "protocol": {
+          "$ref": "#/definitions/ProtocolEnum"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "destinations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1ACLAutoApprovers": {
+      "type": "object",
+      "properties": {
+        "routes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1ACLRoutes"
+          }
+        },
+        "exitNodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1ACLGroup": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1ACLHost": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "cidrBlock": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ACLPolicy": {
+      "type": "object",
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1ACLGroup"
+          }
+        },
+        "hosts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1ACLHost"
+          }
+        },
+        "acls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1ACL"
+          }
+        },
+        "autoApprovers": {
+          "$ref": "#/definitions/v1ACLAutoApprovers"
+        },
+        "tagOwners": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1ACLTagOwner"
+          }
+        }
+      }
+    },
+    "v1ACLRoutes": {
+      "type": "object",
+      "properties": {
+        "route": {
+          "type": "string"
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1ACLTagOwner": {
+      "type": "object",
+      "properties": {
+        "tag": {
+          "type": "string"
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1ApiKey": {
       "type": "object",
       "properties": {
@@ -851,6 +1039,9 @@
           "format": "date-time"
         }
       }
+    },
+    "v1CreateACLPolicyResponse": {
+      "type": "object"
     },
     "v1CreateApiKeyRequest": {
       "type": "object",

@@ -1,23 +1,16 @@
 package headscale
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/netip"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
-	"github.com/tailscale/hujson"
 	"go4.org/netipx"
-	"gopkg.in/yaml.v3"
-	"tailscale.com/envknob"
 	"tailscale.com/tailcfg"
 )
 
@@ -58,106 +51,17 @@ const (
 	ProtocolFC       = 133 // Fibre Channel
 )
 
-var featureEnableSSH = envknob.RegisterBool("HEADSCALE_EXPERIMENTAL_FEATURE_SSH")
+// UserACLPolicy is a group of acl rules to manage access between devices of a single user.
+type UserACLPolicy struct {
+	ID uint64 `gorm:"primary_key"`
 
-// LoadACLPolicy loads the ACL policy from the specify path, and generates the ACL rules.
-func (h *Headscale) LoadACLPolicy(path string) error {
-	log.Debug().
-		Str("func", "LoadACLPolicy").
-		Str("path", path).
-		Msg("Loading ACL policy from path")
+	UserID uint `gorm:"unique"`
+	User   User `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
 
-	policyFile, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer policyFile.Close()
+	ACLPolicy ACLPolicy `gorm:"json"`
 
-	var policy ACLPolicy
-	policyBytes, err := io.ReadAll(policyFile)
-	if err != nil {
-		return err
-	}
-
-	switch filepath.Ext(path) {
-	case ".yml", ".yaml":
-		log.Debug().
-			Str("path", path).
-			Bytes("file", policyBytes).
-			Msg("Loading ACLs from YAML")
-
-		err := yaml.Unmarshal(policyBytes, &policy)
-		if err != nil {
-			return err
-		}
-
-		log.Trace().
-			Interface("policy", policy).
-			Msg("Loaded policy from YAML")
-
-	default:
-		ast, err := hujson.Parse(policyBytes)
-		if err != nil {
-			return err
-		}
-
-		ast.Standardize()
-		policyBytes = ast.Pack()
-		err = json.Unmarshal(policyBytes, &policy)
-		if err != nil {
-			return err
-		}
-	}
-
-	if policy.IsZero() {
-		return errEmptyPolicy
-	}
-
-	h.aclPolicy = &policy
-
-	return h.UpdateACLRules()
-}
-
-func (h *Headscale) UpdateACLRules() error {
-	machines, err := h.ListMachines()
-	if err != nil {
-		return err
-	}
-
-	if h.aclPolicy == nil {
-		return errEmptyPolicy
-	}
-
-	rules, err := generateACLRules(machines, *h.aclPolicy, h.cfg.OIDC.StripEmaildomain)
-	if err != nil {
-		return err
-	}
-	log.Trace().Interface("ACL", rules).Msg("ACL rules generated")
-	h.aclRules = rules
-
-	// Precompute a map of which sources can reach each destination, this is
-	// to provide quicker lookup when we calculate the peerlist for the map
-	// response to nodes.
-	aclPeerCacheMap := generateACLPeerCacheMap(rules)
-	h.aclPeerCacheMapRW.Lock()
-	h.aclPeerCacheMap = aclPeerCacheMap
-	h.aclPeerCacheMapRW.Unlock()
-
-	if featureEnableSSH() {
-		sshRules, err := h.generateSSHRules()
-		if err != nil {
-			return err
-		}
-		log.Trace().Interface("SSH", sshRules).Msg("SSH rules generated")
-		if h.sshPolicy == nil {
-			h.sshPolicy = &tailcfg.SSHPolicy{}
-		}
-		h.sshPolicy.Rules = sshRules
-	} else if h.aclPolicy != nil && len(h.aclPolicy.SSHs) > 0 {
-		log.Info().Msg("SSH ACLs has been defined, but HEADSCALE_EXPERIMENTAL_FEATURE_SSH is not enabled, this is a unstable feature, check docs before activating")
-	}
-
-	return nil
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // generateACLPeerCacheMap takes a list of Tailscale filter rules and generates a map
@@ -231,10 +135,39 @@ func expandACLPeerAddr(srcIP string) []string {
 	return []string{srcIP}
 }
 
+func (h *Headscale) getACLRules(machine Machine) ([]tailcfg.FilterRule, error) {
+	machines, err := h.ListMachinesByUserID(machine.UserID)
+	if err != nil {
+		return nil, err
+	}
+	policy, err := h.getACLPolicy(machine.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	rules, err := generateACLRules(machines, policy)
+	if err != nil {
+		return nil, err
+	}
+
+	return rules, nil
+}
+
+func (h *Headscale) getACLPolicy(userID uint) (ACLPolicy, error) {
+	var policy UserACLPolicy
+	if err := h.db.
+		Where("user_id = ?", userID).FirstOrInit(&policy).Error; err != nil {
+		log.Error().Err(err).Msg("Error accessing db")
+
+		return ACLPolicy{}, fmt.Errorf("unable to query acl policy: %w", err)
+	}
+
+	return policy.ACLPolicy, nil
+}
+
 func generateACLRules(
 	machines []Machine,
 	aclPolicy ACLPolicy,
-	stripEmaildomain bool,
 ) ([]tailcfg.FilterRule, error) {
 	rules := []tailcfg.FilterRule{}
 
@@ -245,12 +178,7 @@ func generateACLRules(
 
 		srcIPs := []string{}
 		for innerIndex, src := range acl.Sources {
-			srcs, err := generateACLPolicySrc(
-				machines,
-				aclPolicy,
-				src,
-				stripEmaildomain,
-			)
+			srcs, err := generateACLPolicySrc(machines, aclPolicy, src)
 			if err != nil {
 				log.Error().
 					Msgf("Error parsing ACL %d, Source %d", index, innerIndex)
@@ -275,7 +203,6 @@ func generateACLRules(
 				aclPolicy,
 				dest,
 				needsWildcard,
-				stripEmaildomain,
 			)
 			if err != nil {
 				log.Error().
@@ -293,13 +220,19 @@ func generateACLRules(
 		})
 	}
 
+	log.Trace().
+		Any("aclPolicy", aclPolicy).
+		Any("rules", rules).
+		Msg("generated tailcfg rules")
+
 	return rules, nil
 }
 
-func (h *Headscale) generateSSHRules() ([]*tailcfg.SSHRule, error) {
+//nolint:unused
+func (h *Headscale) generateSSHRules(policy *ACLPolicy) ([]*tailcfg.SSHRule, error) {
 	rules := []*tailcfg.SSHRule{}
 
-	if h.aclPolicy == nil {
+	if policy == nil {
 		return nil, errEmptyPolicy
 	}
 
@@ -328,7 +261,7 @@ func (h *Headscale) generateSSHRules() ([]*tailcfg.SSHRule, error) {
 		AllowLocalPortForwarding: false,
 	}
 
-	for index, sshACL := range h.aclPolicy.SSHs {
+	for index, sshACL := range policy.SSHs {
 		action := rejectAction
 		switch sshACL.Action {
 		case "accept":
@@ -350,12 +283,7 @@ func (h *Headscale) generateSSHRules() ([]*tailcfg.SSHRule, error) {
 
 		principals := make([]*tailcfg.SSHPrincipal, 0, len(sshACL.Sources))
 		for innerIndex, rawSrc := range sshACL.Sources {
-			expandedSrcs, err := expandAlias(
-				machines,
-				*h.aclPolicy,
-				rawSrc,
-				h.cfg.OIDC.StripEmaildomain,
-			)
+			expandedSrcs, err := expandAlias(machines, *policy, rawSrc)
 			if err != nil {
 				log.Error().
 					Msgf("Error parsing SSH %d, Source %d", index, innerIndex)
@@ -384,6 +312,25 @@ func (h *Headscale) generateSSHRules() ([]*tailcfg.SSHRule, error) {
 	return rules, nil
 }
 
+// CreateUserACLPolicy creates an acl policy for the given user.
+func (h *Headscale) CreateUserACLPolicy(
+	userID uint,
+	policy ACLPolicy,
+) (*UserACLPolicy, error) {
+	userACLPolicy := UserACLPolicy{ACLPolicy: policy, UserID: userID}
+	if err := h.db.Create(&userACLPolicy).Error; err != nil {
+		log.Error().
+			Str("func", "CreateUserACLPolicy").
+			Err(err).
+			Msg("Could not create user acl policy")
+
+		return nil, err
+	}
+
+	return &userACLPolicy, nil
+}
+
+//nolint:unused
 func sshCheckAction(duration string) (*tailcfg.SSHAction, error) {
 	sessionLength, err := time.ParseDuration(duration)
 	if err != nil {
@@ -405,9 +352,8 @@ func generateACLPolicySrc(
 	machines []Machine,
 	aclPolicy ACLPolicy,
 	src string,
-	stripEmaildomain bool,
 ) ([]string, error) {
-	return expandAlias(machines, aclPolicy, src, stripEmaildomain)
+	return expandAlias(machines, aclPolicy, src)
 }
 
 func generateACLPolicyDest(
@@ -415,7 +361,6 @@ func generateACLPolicyDest(
 	aclPolicy ACLPolicy,
 	dest string,
 	needsWildcard bool,
-	stripEmaildomain bool,
 ) ([]tailcfg.NetPortRange, error) {
 	var tokens []string
 
@@ -461,12 +406,7 @@ func generateACLPolicyDest(
 		alias = fmt.Sprintf("%s:%s", tokens[0], tokens[1])
 	}
 
-	expanded, err := expandAlias(
-		machines,
-		aclPolicy,
-		alias,
-		stripEmaildomain,
-	)
+	expanded, err := expandAlias(machines, aclPolicy, alias)
 	if err != nil {
 		return nil, err
 	}
@@ -551,7 +491,6 @@ func expandAlias(
 	machines Machines,
 	aclPolicy ACLPolicy,
 	alias string,
-	stripEmailDomain bool,
 ) ([]string, error) {
 	ips := []string{}
 	if alias == "*" {
@@ -563,7 +502,7 @@ func expandAlias(
 		Msg("Expanding")
 
 	if strings.HasPrefix(alias, "group:") {
-		users, err := expandGroup(aclPolicy, alias, stripEmailDomain)
+		users, err := expandGroup(aclPolicy, alias)
 		if err != nil {
 			return ips, err
 		}
@@ -586,7 +525,7 @@ func expandAlias(
 		}
 
 		// find tag owners
-		owners, err := expandTagOwners(aclPolicy, alias, stripEmailDomain)
+		owners, err := expandTagOwners(aclPolicy, alias)
 		if err != nil {
 			if errors.Is(err, errInvalidTag) {
 				if len(ips) == 0 {
@@ -619,7 +558,7 @@ func expandAlias(
 
 	// if alias is a user
 	nodes := filterMachinesByUser(machines, alias)
-	nodes = excludeCorrectlyTaggedNodes(aclPolicy, nodes, alias, stripEmailDomain)
+	nodes = excludeCorrectlyTaggedNodes(aclPolicy, nodes, alias)
 
 	for _, n := range nodes {
 		ips = append(ips, n.IPAddresses.ToStringSlice()...)
@@ -632,7 +571,7 @@ func expandAlias(
 	if h, ok := aclPolicy.Hosts[alias]; ok {
 		log.Trace().Str("host", h.String()).Msg("expandAlias got hosts entry")
 
-		return expandAlias(machines, aclPolicy, h.String(), stripEmailDomain)
+		return expandAlias(machines, aclPolicy, h.String())
 	}
 
 	// if alias is an IP
@@ -678,12 +617,11 @@ func excludeCorrectlyTaggedNodes(
 	aclPolicy ACLPolicy,
 	nodes []Machine,
 	user string,
-	stripEmailDomain bool,
 ) []Machine {
 	out := []Machine{}
 	tags := []string{}
 	for tag := range aclPolicy.TagOwners {
-		owners, _ := expandTagOwners(aclPolicy, user, stripEmailDomain)
+		owners, _ := expandTagOwners(aclPolicy, user)
 		ns := append(owners, user)
 		if contains(ns, user) {
 			tags = append(tags, tag)
@@ -773,11 +711,7 @@ func filterMachinesByUser(machines []Machine, user string) []Machine {
 
 // expandTagOwners will return a list of user. An owner can be either a user or a group
 // a group cannot be composed of groups.
-func expandTagOwners(
-	aclPolicy ACLPolicy,
-	tag string,
-	stripEmailDomain bool,
-) ([]string, error) {
+func expandTagOwners(aclPolicy ACLPolicy, tag string) ([]string, error) {
 	var owners []string
 	ows, ok := aclPolicy.TagOwners[tag]
 	if !ok {
@@ -789,7 +723,7 @@ func expandTagOwners(
 	}
 	for _, owner := range ows {
 		if strings.HasPrefix(owner, "group:") {
-			gs, err := expandGroup(aclPolicy, owner, stripEmailDomain)
+			gs, err := expandGroup(aclPolicy, owner)
 			if err != nil {
 				return []string{}, err
 			}
@@ -804,11 +738,7 @@ func expandTagOwners(
 
 // expandGroup will return the list of user inside the group
 // after some validation.
-func expandGroup(
-	aclPolicy ACLPolicy,
-	group string,
-	stripEmailDomain bool,
-) ([]string, error) {
+func expandGroup(aclPolicy ACLPolicy, group string) ([]string, error) {
 	outGroups := []string{}
 	aclGroups, ok := aclPolicy.Groups[group]
 	if !ok {
@@ -825,7 +755,7 @@ func expandGroup(
 				errInvalidGroup,
 			)
 		}
-		grp, err := NormalizeToFQDNRules(group, stripEmailDomain)
+		grp, err := NormalizeToFQDNRules(group, false)
 		if err != nil {
 			return []string{}, fmt.Errorf(
 				"failed to normalize group %q, err: %w",

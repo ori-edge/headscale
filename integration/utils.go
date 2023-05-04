@@ -1,6 +1,8 @@
 package integration
 
 import (
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,25 +16,39 @@ const (
 
 func pingAllHelper(t *testing.T, clients []TailscaleClient, addrs []string) int {
 	t.Helper()
-	success := 0
+	var success uint32
+	var waitGroup sync.WaitGroup
 
 	for _, client := range clients {
 		for _, addr := range addrs {
-			err := client.Ping(addr)
-			if err != nil {
-				t.Errorf("failed to ping %s from %s: %s", addr, client.Hostname(), err)
-			} else {
-				success++
-			}
+			waitGroup.Add(1)
+			go func(client TailscaleClient, addr string) {
+				defer waitGroup.Done()
+
+				err := client.Ping(addr)
+				if err != nil {
+					t.Errorf(
+						"failed to ping %s from %s: %s",
+						addr,
+						client.Hostname(),
+						err,
+					)
+				} else {
+					atomic.AddUint32(&success, 1)
+				}
+			}(client, addr)
 		}
 	}
 
-	return success
+	waitGroup.Wait()
+
+	return int(success)
 }
 
 func pingDerpAllHelper(t *testing.T, clients []TailscaleClient, addrs []string) int {
 	t.Helper()
-	success := 0
+	var success uint32
+	var waitGroup sync.WaitGroup
 
 	for _, client := range clients {
 		for _, addr := range addrs {
@@ -40,21 +56,33 @@ func pingDerpAllHelper(t *testing.T, clients []TailscaleClient, addrs []string) 
 				continue
 			}
 
-			err := client.Ping(
-				addr,
-				tsic.WithPingTimeout(derpPingTimeout),
-				tsic.WithPingCount(derpPingCount),
-				tsic.WithPingUntilDirect(false),
-			)
-			if err != nil {
-				t.Errorf("failed to ping %s from %s: %s", addr, client.Hostname(), err)
-			} else {
-				success++
-			}
+			waitGroup.Add(1)
+			go func(client TailscaleClient, addr string) {
+				defer waitGroup.Done()
+
+				err := client.Ping(
+					addr,
+					tsic.WithPingTimeout(derpPingTimeout),
+					tsic.WithPingCount(derpPingCount),
+					tsic.WithPingUntilDirect(false),
+				)
+				if err != nil {
+					t.Errorf(
+						"failed to ping %s from %s: %s",
+						addr,
+						client.Hostname(),
+						err,
+					)
+				} else {
+					atomic.AddUint32(&success, 1)
+				}
+			}(client, addr)
 		}
 	}
 
-	return success
+	waitGroup.Wait()
+
+	return int(success)
 }
 
 func isSelfClient(client TailscaleClient, addr string) bool {

@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -71,12 +72,21 @@ var (
 		tailscaleVersions2021,
 		tailscaleVersions2019...,
 	)
+
+	allowAllPolicy = headscale.ACLPolicy{ACLs: []headscale.ACL{
+		{
+			Action:       "accept",
+			Sources:      []string{"*"},
+			Destinations: []string{"*:*"},
+		},
+	}}
 )
 
 // User represents a User in the ControlServer and a map of TailscaleClient's
 // associated with the User.
 type User struct {
 	Clients map[string]TailscaleClient
+	Keys    map[string]*v1.PreAuthKey
 
 	createWaitGroup sync.WaitGroup
 	joinWaitGroup   sync.WaitGroup
@@ -190,7 +200,7 @@ func (s *Scenario) Shutdown() error {
 	return nil
 }
 
-// Users returns the name of all users associated with the Scenario.
+// Users returns the name of all tags associated with the Scenario.
 func (s *Scenario) Users() []string {
 	users := make([]string, 0)
 	for user := range s.users {
@@ -236,9 +246,10 @@ func (s *Scenario) CreatePreAuthKey(
 	user string,
 	reusable bool,
 	ephemeral bool,
+	tags []string,
 ) (*v1.PreAuthKey, error) {
 	if headscale, err := s.Headscale(); err == nil {
-		key, err := headscale.CreateAuthKey(user, reusable, ephemeral)
+		key, err := headscale.CreateAuthKey(user, reusable, ephemeral, tags)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create user: %w", err)
 		}
@@ -260,12 +271,33 @@ func (s *Scenario) CreateUser(user string) error {
 
 		s.users[user] = &User{
 			Clients: make(map[string]TailscaleClient),
+			Keys:    make(map[string]*v1.PreAuthKey),
 		}
 
 		return nil
 	}
 
 	return fmt.Errorf("failed to create user: %w", errNoHeadscaleAvailable)
+}
+
+func (s *Scenario) CreateUserACLPolicy(
+	user string,
+	aclPolicy headscale.ACLPolicy,
+) error {
+	if headscale, err := s.Headscale(); err == nil {
+		aclStr, err := json.Marshal(aclPolicy)
+		if err != nil {
+			return fmt.Errorf("failed to marshal user acl policy: %w", err)
+		}
+		err = headscale.CreateACLPolicy(user, string(aclStr))
+		if err != nil {
+			return fmt.Errorf("failed to create user acl policy: %w", err)
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("failed to create user acl policy: %w", errNoHeadscaleAvailable)
 }
 
 /// Client related stuff
@@ -334,18 +366,23 @@ func (s *Scenario) CreateTailscaleNodesInUser(
 
 // RunTailscaleUp will log in all of the TailscaleClients associated with a
 // User to the given ControlServer (by URL).
-func (s *Scenario) RunTailscaleUp(
-	userStr, loginServer, authKey string,
-) error {
+func (s *Scenario) RunTailscaleUp(userStr, loginServer string) error {
 	if user, ok := s.users[userStr]; ok {
-		for _, client := range user.Clients {
+		for name, client := range user.Clients {
 			user.joinWaitGroup.Add(1)
 
 			go func(c TailscaleClient) {
 				defer user.joinWaitGroup.Done()
 
 				// TODO(kradalby): error handle this
-				_ = c.Up(loginServer, authKey)
+				err := c.Up(loginServer, user.Keys[name].Key)
+				if err != nil {
+					log.Printf(
+						"tailscale up for client %s error: %s",
+						c.Hostname(),
+						err,
+					)
+				}
 			}(client)
 
 			err := client.WaitForReady()
@@ -417,7 +454,8 @@ func (s *Scenario) CreateHeadscaleEnv(
 	tsOpts []tsic.Option,
 	opts ...hsic.Option,
 ) error {
-	headscale, err := s.Headscale(opts...)
+	//nolint:varnamelen
+	hs, err := s.Headscale(opts...)
 	if err != nil {
 		return err
 	}
@@ -428,17 +466,27 @@ func (s *Scenario) CreateHeadscaleEnv(
 			return err
 		}
 
+		// allow full connectivity within the same user for tests
+		err = s.CreateUserACLPolicy(userName, allowAllPolicy)
+		if err != nil {
+			return err
+		}
+
 		err = s.CreateTailscaleNodesInUser(userName, "all", clientCount, tsOpts...)
 		if err != nil {
 			return err
 		}
 
-		key, err := s.CreatePreAuthKey(userName, true, false)
+		key, err := s.CreatePreAuthKey(userName, true, false, nil)
 		if err != nil {
 			return err
 		}
 
-		err = s.RunTailscaleUp(userName, headscale.GetEndpoint(), key.GetKey())
+		for name := range s.users[userName].Clients {
+			s.users[userName].Keys[name] = key
+		}
+
+		err = s.RunTailscaleUp(userName, hs.GetEndpoint())
 		if err != nil {
 			return err
 		}
@@ -496,6 +544,39 @@ func (s *Scenario) ListTailscaleClients(users ...string) ([]TailscaleClient, err
 		}
 
 		allClients = append(allClients, clients...)
+	}
+
+	return allClients, nil
+}
+
+// ListTailscaleClients returns a list of TailscaleClients given the Users
+// passed as parameters.
+func (s *Scenario) ListTailscaleClientsWithTag(tag string) ([]TailscaleClient, error) {
+	var allClients []TailscaleClient
+
+	for _, user := range s.Users() {
+		clients, err := s.GetClients(user)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, client := range clients {
+			if _, ok := s.users[user].Keys[client.Hostname()]; !ok {
+				//nolint:goerr113
+				return nil, fmt.Errorf(
+					"preauth key not found for client %s and user %s",
+					client.Hostname(),
+					user,
+				)
+			}
+			for _, clientTag := range s.users[user].Keys[client.Hostname()].AclTags {
+				if tag == clientTag {
+					allClients = append(allClients, client)
+
+					break
+				}
+			}
+		}
 	}
 
 	return allClients, nil

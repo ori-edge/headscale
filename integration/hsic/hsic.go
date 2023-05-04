@@ -16,6 +16,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -56,7 +57,6 @@ type HeadscaleInContainer struct {
 	port             int
 	extraPorts       []string
 	hostPortBindings map[string][]string
-	aclPolicy        *headscale.ACLPolicy
 	env              map[string]string
 	tlsCert          []byte
 	tlsKey           []byte
@@ -66,17 +66,6 @@ type HeadscaleInContainer struct {
 // Option represent optional settings that can be given to a
 // Headscale instance.
 type Option = func(c *HeadscaleInContainer)
-
-// WithACLPolicy adds a headscale.ACLPolicy policy to the
-// HeadscaleInContainer instance.
-func WithACLPolicy(acl *headscale.ACLPolicy) Option {
-	return func(hsic *HeadscaleInContainer) {
-		// TODO(kradalby): Move somewhere appropriate
-		hsic.env["HEADSCALE_ACL_POLICY_PATH"] = aclPolicyPath
-
-		hsic.aclPolicy = acl
-	}
-}
 
 // WithTLS creates certificates and enables HTTPS.
 func WithTLS() Option {
@@ -262,18 +251,6 @@ func New(
 		return nil, fmt.Errorf("failed to write headscale config to container: %w", err)
 	}
 
-	if hsic.aclPolicy != nil {
-		data, err := json.Marshal(hsic.aclPolicy)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal ACL Policy to JSON: %w", err)
-		}
-
-		err = hsic.WriteFile(aclPolicyPath, data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to write ACL policy to container: %w", err)
-		}
-	}
-
 	if hsic.hasTLS() {
 		err = hsic.WriteFile(tlsCertPath, hsic.tlsCert)
 		if err != nil {
@@ -431,12 +408,35 @@ func (t *HeadscaleInContainer) CreateUser(
 	return nil
 }
 
+// CreateACLPolicy creates a new acl policy for a user.
+func (t *HeadscaleInContainer) CreateACLPolicy(
+	user string,
+	policy string,
+) error {
+	command := []string{"headscale", "--user", user, "acls", "create", policy}
+
+	stdout, stderr, err := dockertestutil.ExecuteCommand(
+		t.container,
+		command,
+		[]string{},
+	)
+	if err != nil {
+		log.Printf("stdout: %s", stdout)
+		log.Printf("stderr: %s", stderr)
+
+		return err
+	}
+
+	return nil
+}
+
 // CreateAuthKey creates a new "authorisation key" for a User that can be used
 // to authorise a TailscaleClient with the Headscale instance.
 func (t *HeadscaleInContainer) CreateAuthKey(
 	user string,
 	reusable bool,
 	ephemeral bool,
+	tags []string,
 ) (*v1.PreAuthKey, error) {
 	command := []string{
 		"headscale",
@@ -446,6 +446,8 @@ func (t *HeadscaleInContainer) CreateAuthKey(
 		"create",
 		"--expiration",
 		"24h",
+		"--tags",
+		strings.Join(tags, ","),
 		"--output",
 		"json",
 	}

@@ -28,7 +28,7 @@ func TestAuthWebFlowAuthenticationPingAll(t *testing.T) {
 
 	baseScenario, err := NewScenario()
 	if err != nil {
-		t.Errorf("failed to create scenario: %s", err)
+		t.Fatalf("failed to create scenario: %s", err)
 	}
 
 	scenario := AuthWebFlowScenario{
@@ -37,31 +37,29 @@ func TestAuthWebFlowAuthenticationPingAll(t *testing.T) {
 
 	spec := map[string]int{
 		"user1": len(TailscaleVersions),
-		"user2": len(TailscaleVersions),
 	}
 
 	err = scenario.CreateHeadscaleEnv(
 		spec,
 		hsic.WithTestName("webauthping"),
-		hsic.WithACLPolicy(&allowAllPolicy),
 	)
 	if err != nil {
-		t.Errorf("failed to create headscale environment: %s", err)
+		t.Fatalf("failed to create headscale environment: %s", err)
 	}
 
 	allClients, err := scenario.ListTailscaleClients()
 	if err != nil {
-		t.Errorf("failed to get clients: %s", err)
+		t.Fatalf("failed to get clients: %s", err)
 	}
 
 	allIps, err := scenario.ListTailscaleClientsIPs()
 	if err != nil {
-		t.Errorf("failed to get clients: %s", err)
+		t.Fatalf("failed to get clients: %s", err)
 	}
 
 	err = scenario.WaitForTailscaleSync()
 	if err != nil {
-		t.Errorf("failed wait for tailscale clients to be in sync: %s", err)
+		t.Fatalf("failed wait for tailscale clients to be in sync: %s", err)
 	}
 
 	allAddrs := lo.Map(allIps, func(x netip.Addr, index int) string {
@@ -83,7 +81,7 @@ func TestAuthWebFlowLogoutAndRelogin(t *testing.T) {
 
 	baseScenario, err := NewScenario()
 	if err != nil {
-		t.Errorf("failed to create scenario: %s", err)
+		t.Fatalf("failed to create scenario: %s", err)
 	}
 
 	scenario := AuthWebFlowScenario{
@@ -92,31 +90,29 @@ func TestAuthWebFlowLogoutAndRelogin(t *testing.T) {
 
 	spec := map[string]int{
 		"user1": len(TailscaleVersions),
-		"user2": len(TailscaleVersions),
 	}
 
 	err = scenario.CreateHeadscaleEnv(
 		spec,
 		hsic.WithTestName("weblogout"),
-		hsic.WithACLPolicy(&allowAllPolicy),
 	)
 	if err != nil {
-		t.Errorf("failed to create headscale environment: %s", err)
+		t.Fatalf("failed to create headscale environment: %s", err)
 	}
 
 	allClients, err := scenario.ListTailscaleClients()
 	if err != nil {
-		t.Errorf("failed to get clients: %s", err)
+		t.Fatalf("failed to get clients: %s", err)
 	}
 
 	allIps, err := scenario.ListTailscaleClientsIPs()
 	if err != nil {
-		t.Errorf("failed to get clients: %s", err)
+		t.Fatalf("failed to get clients: %s", err)
 	}
 
 	err = scenario.WaitForTailscaleSync()
 	if err != nil {
-		t.Errorf("failed wait for tailscale clients to be in sync: %s", err)
+		t.Fatalf("failed wait for tailscale clients to be in sync: %s", err)
 	}
 
 	allAddrs := lo.Map(allIps, func(x netip.Addr, index int) string {
@@ -148,13 +144,13 @@ func TestAuthWebFlowLogoutAndRelogin(t *testing.T) {
 
 	headscale, err := scenario.Headscale()
 	if err != nil {
-		t.Errorf("failed to get headscale server: %s", err)
+		t.Fatalf("failed to get headscale server: %s", err)
 	}
 
 	for userName := range spec {
 		err = scenario.runTailscaleUp(userName, headscale.GetEndpoint())
 		if err != nil {
-			t.Errorf("failed to run tailscale up: %s", err)
+			t.Fatalf("failed to run tailscale up: %s", err)
 		}
 	}
 
@@ -162,12 +158,14 @@ func TestAuthWebFlowLogoutAndRelogin(t *testing.T) {
 
 	allClients, err = scenario.ListTailscaleClients()
 	if err != nil {
-		t.Errorf("failed to get clients: %s", err)
+		t.Fatalf("failed to get clients: %s", err)
 	}
+
+	t.Logf("clients: %+v", allClients)
 
 	allIps, err = scenario.ListTailscaleClientsIPs()
 	if err != nil {
-		t.Errorf("failed to get clients: %s", err)
+		t.Fatalf("failed to get clients: %s", err)
 	}
 
 	allAddrs = lo.Map(allIps, func(x netip.Addr, index int) string {
@@ -221,12 +219,13 @@ func (s *AuthWebFlowScenario) CreateHeadscaleEnv(
 	users map[string]int,
 	opts ...hsic.Option,
 ) error {
-	headscale, err := s.Headscale(opts...)
+	//nolint:varnamelen
+	hs, err := s.Headscale(opts...)
 	if err != nil {
 		return err
 	}
 
-	err = headscale.WaitForReady()
+	err = hs.WaitForReady()
 	if err != nil {
 		return err
 	}
@@ -237,13 +236,18 @@ func (s *AuthWebFlowScenario) CreateHeadscaleEnv(
 		if err != nil {
 			return err
 		}
+		// allow full connectivity within the same user for tests
+		err = s.CreateUserACLPolicy(userName, allowAllPolicy)
+		if err != nil {
+			return err
+		}
 
 		err = s.CreateTailscaleNodesInUser(userName, "all", clientCount)
 		if err != nil {
 			return err
 		}
 
-		err = s.runTailscaleUp(userName, headscale.GetEndpoint())
+		err = s.runTailscaleUp(userName, hs.GetEndpoint())
 		if err != nil {
 			return err
 		}

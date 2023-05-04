@@ -35,13 +35,13 @@ func TestHeadscale(t *testing.T) {
 
 	scenario, err := NewScenario()
 	if err != nil {
-		t.Errorf("failed to create scenario: %s", err)
+		t.Fatalf("failed to create scenario: %s", err)
 	}
 
 	t.Run("start-headscale", func(t *testing.T) {
 		headscale, err := scenario.Headscale()
 		if err != nil {
-			t.Errorf("failed to create start headcale: %s", err)
+			t.Fatalf("failed to create start headcale: %s", err)
 		}
 
 		err = headscale.WaitForReady()
@@ -53,7 +53,7 @@ func TestHeadscale(t *testing.T) {
 	t.Run("create-user", func(t *testing.T) {
 		err := scenario.CreateUser(user)
 		if err != nil {
-			t.Errorf("failed to create user: %s", err)
+			t.Fatalf("failed to create user: %s", err)
 		}
 
 		if _, ok := scenario.users[user]; !ok {
@@ -62,7 +62,7 @@ func TestHeadscale(t *testing.T) {
 	})
 
 	t.Run("create-auth-key", func(t *testing.T) {
-		_, err := scenario.CreatePreAuthKey(user, true, false)
+		_, err := scenario.CreatePreAuthKey(user, true, false, nil)
 		if err != nil {
 			t.Errorf("failed to create preauthkey: %s", err)
 		}
@@ -86,7 +86,7 @@ func TestCreateTailscale(t *testing.T) {
 
 	scenario, err := NewScenario()
 	if err != nil {
-		t.Errorf("failed to create scenario: %s", err)
+		t.Fatalf("failed to create scenario: %s", err)
 	}
 
 	scenario.users[user] = &User{
@@ -128,7 +128,7 @@ func TestTailscaleNodesJoiningHeadcale(t *testing.T) {
 
 	scenario, err := NewScenario()
 	if err != nil {
-		t.Errorf("failed to create scenario: %s", err)
+		t.Fatalf("failed to create scenario: %s", err)
 	}
 
 	t.Run("start-headscale", func(t *testing.T) {
@@ -146,7 +146,7 @@ func TestTailscaleNodesJoiningHeadcale(t *testing.T) {
 	t.Run("create-user", func(t *testing.T) {
 		err := scenario.CreateUser(user)
 		if err != nil {
-			t.Errorf("failed to create user: %s", err)
+			t.Fatalf("failed to create user: %s", err)
 		}
 
 		if _, ok := scenario.users[user]; !ok {
@@ -157,7 +157,7 @@ func TestTailscaleNodesJoiningHeadcale(t *testing.T) {
 	t.Run("create-tailscale", func(t *testing.T) {
 		err := scenario.CreateTailscaleNodesInUser(user, "1.30.2", count)
 		if err != nil {
-			t.Errorf("failed to add tailscale nodes: %s", err)
+			t.Fatalf("failed to add tailscale nodes: %s", err)
 		}
 
 		if clients := len(scenario.users[user].Clients); clients != count {
@@ -166,9 +166,13 @@ func TestTailscaleNodesJoiningHeadcale(t *testing.T) {
 	})
 
 	t.Run("join-headscale", func(t *testing.T) {
-		key, err := scenario.CreatePreAuthKey(user, true, false)
+		key, err := scenario.CreatePreAuthKey(user, true, false, nil)
 		if err != nil {
-			t.Errorf("failed to create preauthkey: %s", err)
+			t.Fatalf("failed to create preauthkey: %s", err)
+		}
+
+		for name := range scenario.users[user].Clients {
+			scenario.users[user].Keys[name] = key
 		}
 
 		headscale, err := scenario.Headscale()
@@ -176,11 +180,7 @@ func TestTailscaleNodesJoiningHeadcale(t *testing.T) {
 			t.Errorf("failed to create start headcale: %s", err)
 		}
 
-		err = scenario.RunTailscaleUp(
-			user,
-			headscale.GetEndpoint(),
-			key.GetKey(),
-		)
+		err = scenario.RunTailscaleUp(user, headscale.GetEndpoint())
 		if err != nil {
 			t.Errorf("failed to login: %s", err)
 		}

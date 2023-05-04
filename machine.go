@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	v1 "github.com/ori-edge/headscale/gen/go/headscale/v1"
@@ -161,30 +160,15 @@ func (machine *Machine) isEphemeral() bool {
 	return machine.AuthKey != nil && machine.AuthKey.Ephemeral
 }
 
-// filterMachinesByACL wrapper function to not have devs pass around locks and maps
-// related to the application outside of tests.
-func (h *Headscale) filterMachinesByACL(
-	currentMachine *Machine,
-	peers Machines,
-) Machines {
-	return filterMachinesByACL(
-		currentMachine,
-		peers,
-		&h.aclPeerCacheMapRW,
-		h.aclPeerCacheMap,
-	)
-}
-
 // filterMachinesByACL returns the list of peers authorized to be accessed from a given machine.
 func filterMachinesByACL(
 	machine *Machine,
 	machines Machines,
-	lock *sync.RWMutex,
 	aclPeerCacheMap map[string]map[string]struct{},
 ) Machines {
 	log.Trace().
 		Caller().
-		Str("self", machine.Hostname).
+		Any("self", machine).
 		Str("input", machines.String()).
 		Msg("Finding peers filtered by ACLs")
 
@@ -192,10 +176,6 @@ func filterMachinesByACL(
 	// Aclfilter peers here. We are itering through machines in all users and search through the computed aclRules
 	// for match between rule SrcIPs and DstPorts. If the rule is a match we allow the machine to be viewable.
 	machineIPs := machine.IPAddresses.ToStringSlice()
-
-	// TODO(kradalby): Remove this lock, I suspect its not a good idea, and might not be necessary,
-	// we only set this at startup atm (reading ACLs) and it might become a bottleneck.
-	lock.RLock()
 
 	for _, peer := range machines {
 		if peer.ID == machine.ID {
@@ -270,8 +250,6 @@ func filterMachinesByACL(
 		}
 	}
 
-	lock.RUnlock()
-
 	authorizedPeers := make(Machines, 0, len(peers))
 	for _, m := range peers {
 		authorizedPeers = append(authorizedPeers, m)
@@ -294,7 +272,7 @@ func (h *Headscale) ListPeers(machine *Machine) (Machines, error) {
 	log.Trace().
 		Caller().
 		Str("machine", machine.Hostname).
-		Msg("Finding direct peers")
+		Msg("Finding peers")
 
 	machines := Machines{}
 	if err := h.db.Preload("AuthKey").Preload("AuthKey.User").Preload("User").Where("node_key <> ? AND user_id = ?",
@@ -304,41 +282,39 @@ func (h *Headscale) ListPeers(machine *Machine) (Machines, error) {
 		return Machines{}, err
 	}
 
+	rules, err := h.getACLRules(*machine)
+	if err != nil {
+		return nil, err
+	}
+
+	filteredMachines := filterMachinesByACL(
+		machine,
+		machines,
+		generateACLPeerCacheMap(rules),
+	)
+
 	sort.Slice(machines, func(i, j int) bool { return machines[i].ID < machines[j].ID })
 
 	log.Trace().
 		Caller().
 		Str("machine", machine.Hostname).
-		Msgf("Found peers: %s", machines.String())
+		Msgf("Found peers: %s", filteredMachines.String())
 
-	return machines, nil
+	return filteredMachines, nil
 }
 
 func (h *Headscale) getPeers(machine *Machine) (Machines, error) {
 	var peers Machines
 	var err error
 
-	// If ACLs rules are defined, filter visible host list with the ACLs
-	// else use the classic user scope
-	if h.aclPolicy != nil {
-		var machines []Machine
-		machines, err = h.ListMachines()
-		if err != nil {
-			log.Error().Err(err).Msg("Error retrieving list of machines")
+	peers, err = h.ListPeers(machine)
+	if err != nil {
+		log.Error().
+			Caller().
+			Err(err).
+			Msg("Cannot fetch peers")
 
-			return Machines{}, err
-		}
-		peers = h.filterMachinesByACL(machine, machines)
-	} else {
-		peers, err = h.ListPeers(machine)
-		if err != nil {
-			log.Error().
-				Caller().
-				Err(err).
-				Msg("Cannot fetch peers")
-
-			return Machines{}, err
-		}
+		return Machines{}, err
 	}
 
 	sort.Slice(peers, func(i, j int) bool { return peers[i].ID < peers[j].ID })
@@ -491,9 +467,6 @@ func (h *Headscale) SetTags(machine *Machine, tags []string) error {
 		}
 	}
 	machine.ForcedTags = newTags
-	if err := h.UpdateACLRules(); err != nil && !errors.Is(err, errEmptyPolicy) {
-		return err
-	}
 	h.setLastStateChangeToNow()
 
 	if err := h.db.Save(machine).Error; err != nil {
@@ -778,7 +751,12 @@ func (h *Headscale) toNode(
 
 	online := machine.isOnline()
 
-	tags, _ := getTags(h.aclPolicy, machine, h.cfg.OIDC.StripEmaildomain)
+	policy, err := h.getACLPolicy(machine.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	tags, _ := getTags(&policy, machine)
 	tags = lo.Uniq(append(tags, machine.ForcedTags...))
 
 	node := tailcfg.Node{
@@ -865,11 +843,7 @@ func (machine *Machine) toProto() *v1.Machine {
 // getTags will return the tags of the current machine.
 // Invalid tags are tags added by a user on a node, and that user doesn't have authority to add this tag.
 // Valid tags are tags added by a user that is allowed in the ACL policy to add this tag.
-func getTags(
-	aclPolicy *ACLPolicy,
-	machine Machine,
-	stripEmailDomain bool,
-) ([]string, []string) {
+func getTags(aclPolicy *ACLPolicy, machine Machine) ([]string, []string) {
 	validTags := make([]string, 0)
 	invalidTags := make([]string, 0)
 	if aclPolicy == nil {
@@ -878,7 +852,7 @@ func getTags(
 	validTagMap := make(map[string]bool)
 	invalidTagMap := make(map[string]bool)
 	for _, tag := range machine.HostInfo.RequestTags {
-		owners, err := expandTagOwners(*aclPolicy, tag, stripEmailDomain)
+		owners, err := expandTagOwners(*aclPolicy, tag)
 		if errors.Is(err, errInvalidTag) {
 			invalidTagMap[tag] = true
 
@@ -1176,10 +1150,15 @@ func (h *Headscale) EnableAutoApprovedRoutes(machine *Machine) error {
 		return err
 	}
 
+	policy, err := h.getACLPolicy(machine.UserID)
+	if err != nil {
+		return err
+	}
+
 	approvedRoutes := []Route{}
 
 	for _, advertisedRoute := range routes {
-		routeApprovers, err := h.aclPolicy.AutoApprovers.GetRouteApprovers(
+		routeApprovers, err := policy.AutoApprovers.GetRouteApprovers(
 			netip.Prefix(advertisedRoute.Prefix),
 		)
 		if err != nil {
@@ -1195,7 +1174,7 @@ func (h *Headscale) EnableAutoApprovedRoutes(machine *Machine) error {
 			if approvedAlias == machine.User.Name {
 				approvedRoutes = append(approvedRoutes, advertisedRoute)
 			} else {
-				approvedIps, err := expandAlias([]Machine{*machine}, *h.aclPolicy, approvedAlias, h.cfg.OIDC.StripEmaildomain)
+				approvedIps, err := expandAlias([]Machine{*machine}, policy, approvedAlias)
 				if err != nil {
 					log.Err(err).
 						Str("alias", approvedAlias).

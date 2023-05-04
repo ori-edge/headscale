@@ -36,19 +36,6 @@ func getHeadscaleApp() (*headscale.Headscale, error) {
 		return nil, err
 	}
 
-	// We are doing this here, as in the future could be cool to have it also hot-reload
-
-	if cfg.ACL.PolicyPath != "" {
-		aclPath := headscale.AbsolutePathFromConfigPath(cfg.ACL.PolicyPath)
-		err = app.LoadACLPolicy(aclPath)
-		if err != nil {
-			log.Fatal().
-				Str("path", aclPath).
-				Err(err).
-				Msg("Could not load the ACL policy")
-		}
-	}
-
 	return app, nil
 }
 

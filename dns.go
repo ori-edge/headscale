@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 
-	mapset "github.com/deckarep/golang-set/v2"
 	"go4.org/netipx"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/dnstype"
@@ -183,36 +182,11 @@ func addNextDNSMetadata(resolvers []*dnstype.Resolver, machine Machine) {
 }
 
 func getMapResponseDNSConfig(
-	dnsConfigOrig *tailcfg.DNSConfig,
-	baseDomain string,
+	dnsConfig *tailcfg.DNSConfig,
+	_ string,
 	machine Machine,
-	peers Machines,
+	_ Machines,
 ) *tailcfg.DNSConfig {
-	var dnsConfig *tailcfg.DNSConfig = dnsConfigOrig.Clone()
-	if dnsConfigOrig != nil && dnsConfigOrig.Proxied { // if MagicDNS is enabled
-		// Only inject the Search Domain of the current user - shared nodes should use their full FQDN
-		dnsConfig.Domains = append(
-			dnsConfig.Domains,
-			fmt.Sprintf(
-				"%s.%s",
-				machine.User.Name,
-				baseDomain,
-			),
-		)
-
-		userSet := mapset.NewSet[User]()
-		userSet.Add(machine.User)
-		for _, p := range peers {
-			userSet.Add(p.User)
-		}
-		for _, user := range userSet.ToSlice() {
-			dnsRoute := fmt.Sprintf("%v.%v", user.Name, baseDomain)
-			dnsConfig.Routes[dnsRoute] = nil
-		}
-	} else {
-		dnsConfig = dnsConfigOrig
-	}
-
 	addNextDNSMetadata(dnsConfig.Resolvers, machine)
 
 	return dnsConfig
