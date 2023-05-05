@@ -56,7 +56,7 @@ type UserACLPolicy struct {
 	ID uint64 `gorm:"primary_key"`
 
 	UserID uint `gorm:"unique"`
-	User   User `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
+	User   User `gorm:"foreignKey:UserID"`
 
 	ACLPolicy ACLPolicy `gorm:"json"`
 
@@ -328,6 +328,16 @@ func (h *Headscale) CreateUserACLPolicy(
 	}
 
 	return &userACLPolicy, nil
+}
+
+// DestroyUserACLPolicy destroys a acl policy for a given user if it exists.
+func (h *Headscale) DestroyUserACLPolicy(userID uint) error {
+	if result := h.db.Unscoped().Where(
+		"user_id = ?", userID).Delete(&UserACLPolicy{}); result.Error != nil {
+		return result.Error
+	}
+
+	return nil
 }
 
 //nolint:unused
