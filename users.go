@@ -88,6 +88,10 @@ func (h *Headscale) DestroyUser(name string) error {
 			return err
 		}
 	}
+	err = h.DestroyUserACLPolicy(user.ID)
+	if err != nil {
+		return err
+	}
 
 	if result := h.db.Unscoped().Delete(&user); result.Error != nil {
 		return result.Error

@@ -205,6 +205,23 @@ func TestACLCommand(t *testing.T) {
 		},
 	)
 	assert.NoError(t, err)
+
+	err = scenario.CreateUser("user2")
+	if err != nil {
+		assert.NoError(t, err)
+	}
+
+	output, err = headscale.Execute(
+		[]string{
+			"headscale",
+			"acls",
+			"--user",
+			"user2",
+			"create",
+			examplePolicy,
+		},
+	)
+	assert.NoError(t, err, "command failed with %s", output)
 }
 
 func TestPreAuthKeyCommand(t *testing.T) {
