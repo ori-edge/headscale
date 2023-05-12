@@ -1,0 +1,32 @@
+name: release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "charts/ogc-headscale/Chart.yaml"
+
+jobs:
+  git-tag:
+    uses: ori-edge/oge-github-actions/.github/workflows/tag.yml@v0.10.0
+    with:
+      chartPath: "charts/ogc-headscale/Chart.yaml"
+
+  helm-chart-museum-dev:
+    needs: git-tag
+    uses: ori-edge/oge-github-actions/.github/workflows/gcp-helm-charts.yml@v0.10.0
+    with:
+      gcpDestination: "helm-ori-dev"
+    secrets:
+      GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+   
+      
+  helm-chart-museum-prod:
+    needs:
+      - helm-chart-museum-dev
+    uses: ori-edge/oge-github-actions/.github/workflows/gcp-helm-charts.yml@v0.10.0
+    with:
+      gcpDestination: "helm-ori"
+    secrets:
+      GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}

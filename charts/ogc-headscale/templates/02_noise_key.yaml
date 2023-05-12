@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: noisekey
+type: Opaque
+data:
+  mykey: ""

@@ -1,0 +1,141 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ogc-headscale.fullname" . }}
+  labels:
+    {{- include "ogc-headscale.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ogc-headscale.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ogc-headscale.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+#      serviceAccountName: {{ include "ogc-headscale.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: {{ .Values.image.repository }}:{{ include "ogc-headscale.image-tag" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          command: ["/bin/headscale", "serve"]
+          env:
+            - name: HEADSCALE_PUBLIC_HOSTNAME
+              value: "{{ .Values.public_hostname }}"
+            - name: HEADSCALE_PUBLIC_PROTO
+              value: "{{ .Values.public_proto }}"
+            - name: HEADSCALE_CONTACT_MAIL
+              value: "{{ .Values.contact_email }}"
+            - name: HEADSCALE_SERVER_URL
+              value: "{{ .Values.public_proto }}://{{ .Values.public_hostname }}"
+            - name: HEADSCALE_LISTEN_ADDR
+              value: "{{ .Values.listen_addr }}"
+            - name: HEADSCALE_METRICS_LISTEN_ADDR
+              value: "{{ .Values.metrics_listen_addr }}"
+           {{- if .Values.enable_derp }}
+            - name: HEADSCALE_DERP_MAP_PATH
+              value: /vol/config/derp.yaml
+           {{- end }}
+            - name: HEADSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT
+              value: "{{ .Values.ephemeral_node_inactivity_timeout }}"
+            - name: HEADSCALE_DB_TYPE
+              value: "{{ .Values.db.type }}"
+            - name: HEADSCALE_DB_HOST
+              value: "{{ .Values.db.host }}"
+            - name: HEADSCALE_DB_PORT
+              value: "{{ .Values.db.port }}"
+            - name: HEADSCALE_DB_SSL
+              value: "{{ .Values.db.ssl }}"
+         {{- if and .Values.db.passwordSecret.name .Values.db.passwordSecret.userkey }}
+            - name: HEADSCALE_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.db.passwordSecret.name }}
+                  key: {{ .Values.db.passwordSecret.userkey }}
+         {{- else }}
+            - name: HEADSCALE_DB_USER
+              value: {{ .Values.db.user }}
+         {{- end }}
+         {{- if and .Values.db.passwordSecret.name .Values.db.passwordSecret.passkey }}
+            - name: HEADSCALE_DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.db.passwordSecret.name }}
+                  key: {{ .Values.db.passwordSecret.passkey }}
+         {{- else }}
+            - name: HEADSCALE_DB_PASS
+              value: {{ .Values.db.password }}
+         {{- end }}
+            - name: HEADSCALE_DB_NAME
+              value: "{{ .Values.db.dbname }}"
+          {{- if .Values.containerPort }}
+          ports:
+              - name: http
+                containerPort: {{ .Values.containerPort }}
+                protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+            periodSeconds: 15
+          {{- end }}
+          volumeMounts:
+          {{- if .Values.enable_derp }}
+            - name: config
+              mountPath: /vol/config
+          {{- end }}
+            - name: etc
+              mountPath: /etc/headscale
+          {{- if .Values.provide_keys }}
+            - name: privatekey
+              mountPath: /vol/config/privatekey
+            - name: noisekey
+              mountPath: /vol/config/noisekey
+          {{- end }}
+      volumes:
+      {{- if .Values.enable_derp }}
+        - name: config
+          configMap:
+            name: headscale-site
+      {{- end }}
+        - name: etc
+          configMap:
+            name: headscale-etc
+      {{- if .Values.provide_keys }}
+        - name: privatekey
+          secret:
+            secretName: privatekey
+        - name: noisekey
+          secret:
+            secretName: noisekey
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
