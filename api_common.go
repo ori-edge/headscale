@@ -114,7 +114,6 @@ func (h *Headscale) generateMapResponse(
 	log.Trace().
 		Str("func", "generateMapResponse").
 		Str("machine", mapRequest.Hostinfo.Hostname).
-		// Interface("payload", resp).
 		Msgf("Generated map response: %s", tailMapResponseToString(resp))
 
 	return &resp, nil

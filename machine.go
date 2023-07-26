@@ -1253,13 +1253,13 @@ func (h *Headscale) GenerateGivenName(
 	}
 
 	for _, machine := range machines {
-		if machine.MachineKey != machineKey && machine.GivenName == givenName {
-			postfixedName, err := h.generateGivenName(suppliedName, true)
-			if err != nil {
-				return "", err
-			}
-
-			givenName = postfixedName
+		if machine.MachineKey != machineKey && machine.GivenName == givenName &&
+			!machine.isExpired() {
+			log.Info().
+				Caller().
+				Str("machineKey", machineKey).
+				Str("name", givenName).
+				Msg("Hostname collision found")
 		}
 	}
 

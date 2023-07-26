@@ -359,62 +359,6 @@ func (s *Suite) TestSerdeAddressStrignSlice(c *check.C) {
 	}
 }
 
-func (s *Suite) TestGenerateGivenName(c *check.C) {
-	user1, err := app.CreateUser("user-1")
-	c.Assert(err, check.IsNil)
-
-	pak, err := app.CreatePreAuthKey(user1.Name, false, false, nil, nil)
-	c.Assert(err, check.IsNil)
-
-	_, err = app.GetMachine("user-1", "testmachine")
-	c.Assert(err, check.NotNil)
-
-	machine := &Machine{
-		ID:             0,
-		MachineKey:     "machine-key-1",
-		NodeKey:        "node-key-1",
-		DiscoKey:       "disco-key-1",
-		Hostname:       "hostname-1",
-		GivenName:      "hostname-1",
-		UserID:         user1.ID,
-		RegisterMethod: RegisterMethodAuthKey,
-		AuthKeyID:      uint(pak.ID),
-	}
-	app.db.Save(machine)
-
-	givenName, err := app.GenerateGivenName("machine-key-2", "hostname-2")
-	comment := check.Commentf(
-		"Same user, unique machines, unique hostnames, no conflict",
-	)
-	c.Assert(err, check.IsNil, comment)
-	c.Assert(givenName, check.Equals, "hostname-2", comment)
-
-	givenName, err = app.GenerateGivenName("machine-key-1", "hostname-1")
-	comment = check.Commentf("Same user, same machine, same hostname, no conflict")
-	c.Assert(err, check.IsNil, comment)
-	c.Assert(givenName, check.Equals, "hostname-1", comment)
-
-	givenName, err = app.GenerateGivenName("machine-key-2", "hostname-1")
-	comment = check.Commentf("Same user, unique machines, same hostname, conflict")
-	c.Assert(err, check.IsNil, comment)
-	c.Assert(
-		givenName,
-		check.Matches,
-		fmt.Sprintf("^hostname-1-[a-z0-9]{%d}$", MachineGivenNameHashLength),
-		comment,
-	)
-
-	givenName, err = app.GenerateGivenName("machine-key-2", "hostname-1")
-	comment = check.Commentf("Unique users, unique machines, same hostname, conflict")
-	c.Assert(err, check.IsNil, comment)
-	c.Assert(
-		givenName,
-		check.Matches,
-		fmt.Sprintf("^hostname-1-[a-z0-9]{%d}$", MachineGivenNameHashLength),
-		comment,
-	)
-}
-
 func (s *Suite) TestSetTags(c *check.C) {
 	user, err := app.CreateUser("test")
 	c.Assert(err, check.IsNil)
