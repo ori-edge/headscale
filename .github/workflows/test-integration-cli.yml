@@ -27,8 +27,10 @@ jobs:
             integration_test/
             config-example.yaml
 
-      - uses: cachix/install-nix-action@v16
-        if: steps.changed-files.outputs.any_changed == 'true'
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: satackey/action-docker-layer-caching@main
+        continue-on-error: true
 
       - name: Run CLI integration tests
         if: steps.changed-files.outputs.any_changed == 'true'
