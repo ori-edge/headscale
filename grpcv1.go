@@ -3,6 +3,7 @@ package headscale
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -44,6 +45,9 @@ func (api headscaleV1APIServer) CreateUser(
 ) (*v1.CreateUserResponse, error) {
 	user, err := api.h.CreateUser(request.GetName())
 	if err != nil {
+		if errors.Is(err, ErrUserExists) {
+			return nil, status.Error(codes.AlreadyExists, err.Error())
+		}
 		return nil, err
 	}
 
@@ -573,7 +577,7 @@ func (api headscaleV1APIServer) CreateACLPolicy(
 		return nil, err
 	}
 
-	_, err = api.h.CreateUserACLPolicy(user.ID, aclPolicy)
+	_, err = api.h.CreateOrUpdateUserACLPolicy(user.ID, aclPolicy)
 	if err != nil {
 		return nil, err
 	}

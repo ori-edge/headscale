@@ -178,7 +178,7 @@ func (s *Suite) TestListPeers(c *check.C) {
 	user, err := app.CreateUser("test")
 	c.Assert(err, check.IsNil)
 
-	_, err = app.CreateUserACLPolicy(user.ID, ACLPolicy{
+	_, err = app.CreateOrUpdateUserACLPolicy(user.ID, ACLPolicy{
 		ACLs: []ACL{
 			{
 				Action:       "accept",
@@ -251,7 +251,7 @@ func (s *Suite) TestGetACLFilteredPeers(c *check.C) {
 	}
 
 	//
-	_, err = app.CreateUserACLPolicy(user.ID, ACLPolicy{
+	_, err = app.CreateOrUpdateUserACLPolicy(user.ID, ACLPolicy{
 		ACLs: []ACL{
 			{
 				Action:       "accept",
@@ -1193,7 +1193,7 @@ func (s *Suite) TestAutoApproveRoutes(c *check.C) {
 	user, err := app.CreateUser("test")
 	c.Assert(err, check.IsNil)
 
-	_, err = app.CreateUserACLPolicy(user.ID, ACLPolicy{
+	_, err = app.CreateOrUpdateUserACLPolicy(user.ID, ACLPolicy{
 		Groups:    Groups{"group:test": []string{"test"}},
 		TagOwners: TagOwners{"tag:exit": []string{"test"}},
 		ACLs: []ACL{
