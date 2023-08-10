@@ -128,7 +128,7 @@ func (s *Suite) TestValidExpandTagOwnersInSources(c *check.C) {
 	}
 	app.db.Save(&machine)
 
-	_, err = app.CreateUserACLPolicy(user.ID, ACLPolicy{
+	_, err = app.CreateOrUpdateUserACLPolicy(user.ID, ACLPolicy{
 		Groups:    Groups{"group:test": []string{"user1", "user2"}},
 		TagOwners: TagOwners{"tag:test": []string{"user3", "group:test"}},
 		ACLs: []ACL{
@@ -146,6 +146,37 @@ func (s *Suite) TestValidExpandTagOwnersInSources(c *check.C) {
 	c.Assert(rules, check.HasLen, 1)
 	c.Assert(rules[0].SrcIPs, check.HasLen, 1)
 	c.Assert(rules[0].SrcIPs[0], check.Equals, "100.64.0.1")
+}
+
+func (s *Suite) TestCreateUserAclPolicy(c *check.C) {
+	user, err := app.CreateUser("user1")
+	c.Assert(err, check.IsNil)
+
+	_, err = app.CreateOrUpdateUserACLPolicy(user.ID, ACLPolicy{
+		Groups:    Groups{"group:test": []string{"user1", "user2"}},
+		TagOwners: TagOwners{"tag:test": []string{"user3", "group:test"}},
+		ACLs: []ACL{
+			{
+				Action:       "accept",
+				Sources:      []string{"tag:test"},
+				Destinations: []string{"*:*"},
+			},
+		},
+	})
+	c.Assert(err, check.IsNil)
+
+	_, err = app.CreateOrUpdateUserACLPolicy(user.ID, ACLPolicy{
+		Groups:    Groups{"group:test": []string{"user1", "user2"}},
+		TagOwners: TagOwners{"tag:test": []string{"user3", "group:test"}},
+		ACLs: []ACL{
+			{
+				Action:       "accept",
+				Sources:      []string{"tag:test"},
+				Destinations: []string{"*:80"},
+			},
+		},
+	})
+	c.Assert(err, check.IsNil)
 }
 
 // this test should validate that we can expand a group in a TagOWner section and
@@ -180,7 +211,7 @@ func (s *Suite) TestValidExpandTagOwnersInDestinations(c *check.C) {
 	}
 	app.db.Save(&machine)
 
-	_, err = app.CreateUserACLPolicy(user.ID, ACLPolicy{
+	_, err = app.CreateOrUpdateUserACLPolicy(user.ID, ACLPolicy{
 		Groups:    Groups{"group:test": []string{"user1", "user2"}},
 		TagOwners: TagOwners{"tag:test": []string{"user3", "group:test"}},
 		ACLs: []ACL{
@@ -229,7 +260,7 @@ func (s *Suite) TestInvalidTagValidUser(c *check.C) {
 	}
 	app.db.Save(&machine)
 
-	_, err = app.CreateUserACLPolicy(user.ID, ACLPolicy{
+	_, err = app.CreateOrUpdateUserACLPolicy(user.ID, ACLPolicy{
 		TagOwners: TagOwners{"tag:test": []string{"user1"}},
 		ACLs: []ACL{
 			{
@@ -299,7 +330,7 @@ func (s *Suite) TestValidTagInvalidUser(c *check.C) {
 	}
 	app.db.Save(&machine)
 
-	_, err = app.CreateUserACLPolicy(user.ID, ACLPolicy{
+	_, err = app.CreateOrUpdateUserACLPolicy(user.ID, ACLPolicy{
 		TagOwners: TagOwners{"tag:webapp": []string{"user1"}},
 		ACLs: []ACL{
 			{

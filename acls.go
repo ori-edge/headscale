@@ -312,15 +312,31 @@ func (h *Headscale) generateSSHRules(policy *ACLPolicy) ([]*tailcfg.SSHRule, err
 	return rules, nil
 }
 
-// CreateUserACLPolicy creates an acl policy for the given user.
-func (h *Headscale) CreateUserACLPolicy(
+// CreateOrUpdateUserACLPolicy creates an acl policy for the given user.
+func (h *Headscale) CreateOrUpdateUserACLPolicy(
 	userID uint,
 	policy ACLPolicy,
 ) (*UserACLPolicy, error) {
+	existingUserPolicy := UserACLPolicy{UserID: userID}
+	if err := h.db.Where("user_id = ?", userID).First(&existingUserPolicy).Error; err == nil {
+		// already exists, just update
+		existingUserPolicy.ACLPolicy = policy
+		if err := h.db.Save(&existingUserPolicy).Error; err != nil {
+			log.Error().
+				Str("func", "CreateOrUpdateUserACLPolicy").
+				Err(err).
+				Msg("Could not update user acl policy")
+
+			return nil, err
+		}
+
+		return &existingUserPolicy, nil
+	}
+
 	userACLPolicy := UserACLPolicy{ACLPolicy: policy, UserID: userID}
 	if err := h.db.Create(&userACLPolicy).Error; err != nil {
 		log.Error().
-			Str("func", "CreateUserACLPolicy").
+			Str("func", "CreateOrUpdateUserACLPolicy").
 			Err(err).
 			Msg("Could not create user acl policy")
 
