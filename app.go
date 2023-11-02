@@ -19,7 +19,6 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gorilla/mux"
-	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	v1 "github.com/ori-edge/headscale/gen/go/headscale/v1"
 	"github.com/patrickmn/go-cache"
@@ -610,7 +609,13 @@ func (h *Headscale) Serve() error {
 	}
 
 	// Start the local gRPC server without TLS and without authentication
-	grpcSocket := grpc.NewServer(zerolog.UnaryInterceptor())
+	grpcOptions := []grpc.ServerOption{
+		grpc.ChainUnaryInterceptor(
+			serverErrorInterceptor,
+			zerolog.NewUnaryServerInterceptor(),
+		),
+	}
+	grpcSocket := grpc.NewServer(grpcOptions...)
 
 	v1.RegisterHeadscaleServiceServer(grpcSocket, newHeadscaleV1APIServer(h))
 	reflection.Register(grpcSocket)
@@ -647,11 +652,10 @@ func (h *Headscale) Serve() error {
 		log.Info().Msgf("Enabling remote gRPC at %s", h.cfg.GRPCAddr)
 
 		grpcOptions := []grpc.ServerOption{
-			grpc.UnaryInterceptor(
-				grpcMiddleware.ChainUnaryServer(
-					h.grpcAuthenticationInterceptor,
-					zerolog.NewUnaryServerInterceptor(),
-				),
+			grpc.ChainUnaryInterceptor(
+				h.grpcAuthenticationInterceptor,
+				serverErrorInterceptor,
+				zerolog.NewUnaryServerInterceptor(),
 			),
 		}
 
@@ -990,4 +994,14 @@ func readOrCreatePrivateKey(path string) (*key.MachinePrivate, error) {
 	}
 
 	return &machineKey, nil
+}
+
+func serverErrorInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	resp, err := handler(ctx, req)
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return resp, status.Error(codes.NotFound, err.Error())
+	}
+
+	return resp, err
 }
