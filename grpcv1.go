@@ -33,7 +33,7 @@ func (api headscaleV1APIServer) GetUser(
 ) (*v1.GetUserResponse, error) {
 	user, err := api.h.GetUser(request.GetName())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting user")
 	}
 
 	return &v1.GetUserResponse{User: user.toProto()}, nil
